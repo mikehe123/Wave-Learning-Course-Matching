@@ -8,20 +8,19 @@ let all_students_profiles = JSON.parse(
 );
 let { current_seminars_targetGrade } = require("./info_func");
 const { uuid } = require("uuidv4");
-
 let late_reg = JSON.parse(fs.readFileSync("late_reg.json", "utf-8"));
 
-const students_reg_with_grade = students_reg.map((student) => {
+//============================Data Joining===========================//
+const joined_students_info = students_reg.map((student) => {
   const { email, numSeminars, sem1, sem2, sem3, sem4, sem5, createdAt } =
     student;
-  let e = email;
 
+  //Find registered students' grade from Student-Profiles.json
   const level = all_students_profiles.filter((complete_profile) => {
-    const { email, grade } = complete_profile;
+    const { email: profileEmail, grade: studentGrade } = complete_profile;
 
-    if (e === email) {
-      // console.log(grade);
-      return grade;
+    if (email === profileEmail) {
+      return studentGrade;
     }
   });
 
@@ -30,8 +29,19 @@ const students_reg_with_grade = students_reg.map((student) => {
   const studentFirstName = level[0]?.first_name || "";
   const studentSecondName = level[0]?.last_name || "";
   const studentName = `${studentFirstName} ${studentSecondName}`;
-
   const id = uuid();
+
+  // turn the seminar properties into a map, eliminate repeat courses
+  const registered = new Map();
+  const courseArr = [sem1, sem2, sem3, sem4, sem5];
+  const removedSeminar = ["seminar999"];
+
+  courseArr.forEach((seminar) => {
+    if (seminar && !removedSeminar.includes(seminar)) {
+      registered.set(seminar, false);
+    }
+  });
+
   return {
     id,
     studentName,
@@ -39,57 +49,72 @@ const students_reg_with_grade = students_reg.map((student) => {
     parentEmail,
     grade,
     numSeminars,
-    sem1,
-    sem2,
-    sem3,
-    sem4,
-    sem5,
+    registered,
     createdAt,
   };
 });
-//console.log(students_reg_with_grade);
 
-//find repeat student
-const allStuEmails = [];
-const allStuEmailset = new Set();
-students_reg_with_grade.forEach(({ email, id }) => {
-  allStuEmails.push({ email, id });
-  allStuEmailset.add(email);
-});
-const repeatedStu = [];
-for (let i = 0; i < allStuEmails.length; i++) {
-  const d = allStuEmails.pop();
-  if (allStuEmailset.delete(d.email) === false) {
-    repeatedStu.push(d);
-  }
-}
-console.log(repeatedStu);
-console.log(students_reg.length);
+//============================Data Cleaning===========================//
 
-//find student who repeat course regisration
-let repeat_reg = [];
-let repeat_reg_num = 0;
-students_reg_with_grade.forEach(({ email, sem1, sem2, sem3, sem4, sem5 }) => {
-  const arr = [sem1, sem2, sem3, sem4, sem5];
-
-  arr.forEach((sem) => {
-    let avoid = 0;
-    arr.forEach((sem_compare) => {
-      if (sem === sem_compare && sem !== "") {
-        avoid++;
-        if (avoid > 1) {
-          //console.log("repeat reg");
-          repeat_reg_num++;
-          repeat_reg.push(email);
-        }
-      }
+const students_with_no_repeat_account = (JoinedStudentInfo) => {
+  function findRepeatAccount(repeatedAccounts = []) {
+    const allStuEmailset = new Set();
+    const allStuEmails = JoinedStudentInfo.map(({ email, id }) => {
+      allStuEmailset.add(email);
+      return { email, id };
     });
-  });
-});
-console.log(repeat_reg);
-console.log(repeat_reg_num / 2 + " student registered repeat courses");
 
-function sortCallback(a, b) {
+    while (allStuEmails.length !== 0) {
+      const accountInstance = allStuEmails.pop();
+      if (!allStuEmailset.delete(accountInstance.email)) {
+        repeatedAccounts.push(accountInstance);
+      }
+    }
+
+    return repeatedAccounts;
+  }
+
+  function deleteRepeatAccount(repeatedAccounts, joinedStudentsInfo) {
+    return joinedStudentsInfo.filter((Student) => {
+      const { id: repeatedId } = Student;
+      return !repeatedAccounts.includes(repeatedId);
+    });
+  }
+
+  const repeatAccount = findRepeatAccount();
+
+  return deleteRepeatAccount(repeatAccount, JoinedStudentInfo);
+};
+
+//find + delete repeat course regisration
+
+// const students_with_no_repeat_courese = (studentRegInfo) => {
+//   let repeat_reg = [];
+//   let repeat_reg_num = 0;
+//   studentRegInfo.forEach((Student) => {
+//     const { sem1, sem2, sem3, sem4, sem5 } = Student;
+//     const courseArr = [sem1, sem2, sem3, sem4, sem5];
+//     const courseSet = new Set();
+//     courseArr.forEach((course) => courseSet.add(course));
+
+//     courseArr.forEach((sem) => {
+//       let repeats = 0;
+//       courseArr.forEach((sem_compare) => {
+//         if (sem === sem_compare && sem !== "") {
+//           repeats++;
+//           if (repeats > 1) {
+//             repeat_reg_num++;
+//             repeat_reg.push(email);
+//           }
+//         }
+//       });
+//     });
+//   });
+//   console.log(repeat_reg);
+//   console.log(repeat_reg_num / 2 + " student registered repeat courses");
+// };
+
+function sortByRegTimeCallback(a, b) {
   var date1 = new Date(Date.parse(a.createdAt));
   var date2 = new Date(Date.parse(b.createdAt));
   if (date1.getTime() >= date2.getTime()) {
@@ -100,6 +125,7 @@ function sortCallback(a, b) {
     return 0;
   }
 }
+
 const conflictTimeCoursesParis = [
   ["seminar136", "seminar131"],
   ["seminar135", "seminar140"],
@@ -107,12 +133,11 @@ const conflictTimeCoursesParis = [
   ["seminar134", "seminar138"],
   ["seminar134", "seminar127"],
 ];
-let wahaha = 0;
+
 function clearStuWhoChooseTimeConflictCourse_helper(arr, seminar1, seminar2) {
   let sem1 = arr.indexOf(seminar1);
   let sem2 = arr.indexOf(seminar2);
   if (sem1 !== -1 && sem2 !== -1) {
-    //  console.log(wahaha++);
     if (sem1 > sem2) {
       arr[sem2] = "";
       moveBackEmptyCourseChoice(arr);
@@ -204,23 +229,12 @@ function filterRegistrationByGrade(target, grade, gradeline = 0) {
     }
   }
 }
-function setRegistered({ grade, sem1, sem2, sem3, sem4, sem5 }) {
-  let arr = [sem1, sem2, sem3, sem4, sem5];
-  arr = sortRegistrationByGrade(grade, arr);
-  let clearedArr = clearStuWhoChooseTimeConflictCourse(
-    arr,
+function setRegistered({ grade, registered }) {
+  const sortedRegisteredbyGrade = sortRegistrationByGrade(grade, registered);
+  return clearStuWhoChooseTimeConflictCourse(
+    sortedRegisteredbyGrade,
     conflictTimeCoursesParis
   );
-  //console.log(arr);
-  const registered = new Map();
-  clearedArr.forEach((seminar) => {
-    if (seminar && seminar !== "seminar999") {
-      registered.set(seminar, false);
-      //  console.log(test++);
-    }
-  });
-
-  return registered;
 }
 
 const packagedStudentInfo = (student) => {
@@ -241,19 +255,22 @@ const packagedStudentInfo = (student) => {
   };
 };
 
-const batches = [];
-for (let index = 1; index < 6; index++) {
-  batches.push(
-    students_reg_with_grade
-      .map((student) => {
-        return packagedStudentInfo(student);
-      })
-      .filter(({ registered }) => {
-        return registered.size == index;
-      })
-      .sort(sortCallback)
-  );
-}
+const batchStudentByNumSeminar = (regisrationData) => {
+  const batches = [];
+  for (let index = 1; index < 6; index++) {
+    batches.push(
+      regisrationData
+        .map((student) => {
+          return packagedStudentInfo(student);
+        })
+        .filter(({ registered }) => {
+          return registered.size == index;
+        })
+        .sort(sortByRegTimeCallback)
+    );
+  }
+  return batches;
+};
 
 function filterStudentByCourse(seminar1, seminar2) {
   let studentChooseConflicTimeCourses = [];
