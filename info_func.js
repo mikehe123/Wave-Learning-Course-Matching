@@ -48,7 +48,7 @@ current_seminars_infos.forEach((seminar) => {
   current_seminars_targetGrade.push([name, seminar.targetAudience]);
 });
 exports.current_seminars_targetGrade = current_seminars_targetGrade;
-console.log(current_seminars_targetGrade);
+//console.log(current_seminars_targetGrade);
 //check conflicts time
 //console.log(current_seminars_targetGrade);
 function checkCourseTimeConflicts() {
@@ -124,3 +124,35 @@ exports.total_Chose = total_Chose;
 console.log(
   "Total capacity: " + total_capacity + " Total Chose: " + total_Chose
 );
+
+
+function update_reg_status(reg_database) {
+  const updateStatus = reg_database
+    .map(({ id, maxClassSize, registered }) => {
+      if (registered > maxClassSize) {
+        return {
+          OVERLOAD: id,
+          MaxSize: maxClassSize,
+          Registered: registered,
+          Exceed: registered - maxClassSize,
+        };
+      } else if (registered == maxClassSize) {
+        return {
+          FULL: id,
+          MaxSize: maxClassSize,
+          Registered: registered,
+        };
+      } else {
+        return {
+          Normal: id,
+          MaxSize: maxClassSize,
+          Registered: registered,
+        };
+      }
+    })
+    .sort((a, b) => {
+      return b.Registered - a.Registered;
+    });
+  console.log(updateStatus);
+}
+module.exports.update_reg_status = update_reg_status

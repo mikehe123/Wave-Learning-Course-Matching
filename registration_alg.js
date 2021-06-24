@@ -1,13 +1,13 @@
 const {
   current_seminars_id,
   current_seminars_infos,
-  checkCourseTimeConflicts,
+  checkCourseTimeConflicts,update_reg_status,
   courseStatus,
   total_Chose,
   total_capacity,
 } = require("./info_func.js");
 
-const { stu_batches } = require("./batch_students");
+const { stu_batches ,filterRegistrationByGrade} = require("./batch_students");
 
 const registration = [];
 current_seminars_infos.forEach(({ id, maxClassSize, targetAudience }) => {
@@ -23,44 +23,7 @@ current_seminars_infos.forEach(({ id, maxClassSize, targetAudience }) => {
   });
 });
 
-//console.log(registration);
 
-function filterRegistrationByGrade(target, grade, gradeline = 0) {
-  let min = 9;
-  let max = 9;
-  target.forEach((t) => {
-    if (t < min) {
-      min = t;
-    }
-    if (t > max) {
-      max = t;
-    }
-  });
-  if (grade.charAt(0) !== ">" || grade.charAt(0) !== "<") {
-    if (grade <= max + gradeline && grade >= min - gradeline) {
-      return "match";
-    } else if (grade > max) {
-      return grade - max;
-    } else if (grade < min) {
-      return min - grade;
-    }
-    if (grade.charAt(0) == ">") {
-      if (max + gradeline >= 12) {
-        return "match";
-      } else {
-        return 12 - max;
-      }
-    }
-
-    if (grade.charAt(0) == "<") {
-      if (min - gradeline <= 6) {
-        return "match";
-      } else {
-        return min - 6;
-      }
-    }
-  }
-}
 let NumSeminarSwitch = false;
 function filterRegistrationByNumSeminars({ registered, numSeminars }) {
   let count = 0;
@@ -81,7 +44,8 @@ function filterRegistrationByNumSeminars({ registered, numSeminars }) {
 }
 let debug_on_mismatch_reg_number = 0;
 let stu_with_misMatch_grade = [];
-function updateRegistration(stopPoint, groupNum, courseChoice) {
+
+function updateRegistration(stopPoint, groupNum, courseChoice, overloadPercentage = 1) {
   stu_with_misMatch_grade = [];
   let overflowedStu = [];
   registration.forEach((seminar) => {
@@ -102,12 +66,13 @@ function updateRegistration(stopPoint, groupNum, courseChoice) {
         }
         if (
           filterRegistrationByGrade(seminar.targetAudience, grade) !==
-            "match" &&
+          -999 &&
           groupNum !== 0
         ) {
           return;
         }
-        if (stopPoint === true && seminar.registered >= seminar.maxClassSize) {
+        const loadingStopPoint = seminar.maxClassSize* overloadPercentage
+        if (stopPoint === true && seminar.registered >= loadingStopPoint ) {
           console.log(seminar.id + "is full! Stopped registering");
 
           overflowedStu.push(student);
@@ -172,35 +137,7 @@ function MassUpdate(stopPoint, batchGroups, batchChoices) {
 }
 
 // check current registration status
-function update_reg_status(reg_database) {
-  const updateStatus = reg_database
-    .map(({ id, maxClassSize, registered }) => {
-      if (registered > maxClassSize) {
-        return {
-          OVERLOAD: id,
-          MaxSize: maxClassSize,
-          Registered: registered,
-          More: registered - maxClassSize,
-        };
-      } else if (registered == maxClassSize) {
-        return {
-          FULL: id,
-          MaxSize: maxClassSize,
-          Registered: registered,
-        };
-      } else {
-        return {
-          Normal: id,
-          MaxSize: maxClassSize,
-          Registered: registered,
-        };
-      }
-    })
-    .sort((a, b) => {
-      return b.Registered - a.Registered;
-    });
-  console.log(updateStatus);
-}
+
 // get all registration by emails and check the registration size.
 const allseminarEmail = ({ groups }) => {
   let emailList = [];
@@ -362,7 +299,7 @@ function resultToJson(stu_batches) {
   const result = [];
   stu_batches.forEach((group, index) => {
     group.forEach(
-      ({ id, studentName, parentEmail, email, registered, numSeminars }) => {
+      ({ id, parentEmail, email, registered, numSeminars }) => {
         let storeCourseNameKey = [];
         let mapIter = registered.entries();
         for (let i = 0; i < index; i++) {
@@ -446,18 +383,18 @@ const finalRegistrationResult = splitStudentAssigment(
 console.log(total_match_count + " NUMBER OF FINAL STUDENTS");
 console.log(finalRegistrationResult.length + " NUMBER OF FINAL STUDENTS");
 //========Write final registration=====//
-const fs = require("fs");
-fs.writeFile(
-  "SeminarAssignments.json",
-  JSON.stringify(finalRegistrationResult),
-  "utf8",
-  (err) => {
-    if (err) console.log(err);
-    else {
-      console.log("File written successfully\n");
-    }
-  }
-);
+// const fs = require("fs");
+// fs.writeFile(
+//   "SeminarAssignments.json",
+//   JSON.stringify(finalRegistrationResult),
+//   "utf8",
+//   (err) => {
+//     if (err) console.log(err);
+//     else {
+//       console.log("File written successfully\n");
+//     }
+//   }
+// );
 
 //-------------------------------------------------------------------------------
 //========Write final registration=====//
