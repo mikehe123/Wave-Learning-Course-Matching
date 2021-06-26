@@ -1,6 +1,10 @@
 const fs = require("fs");
-let students_reg = JSON.parse(fs.readFileSync("students-reg.json", "utf-8"));
-let seminars_info = JSON.parse(fs.readFileSync("seminars_info.json", "utf-8"));
+let students_reg = JSON.parse(
+  fs.readFileSync("import_data/Seminar-Registration.json", "utf-8")
+);
+let seminars_info = JSON.parse(
+  fs.readFileSync("import_data/Seminars_Info.json", "utf-8")
+);
 
 //get all current seminars name
 const current_seminars_id = new Set();
@@ -121,10 +125,9 @@ const total_Chose = sortedbyRegister.reduce((total, { Chose }) => {
 
 exports.total_capacity = total_capacity;
 exports.total_Chose = total_Chose;
-console.log(
-  "Total capacity: " + total_capacity + " Total Chose: " + total_Chose
-);
-
+// console.log(
+//   "Total capacity: " + total_capacity + " Total Chose: " + total_Chose
+// );
 
 function update_reg_status(reg_database) {
   const updateStatus = reg_database
@@ -155,4 +158,4 @@ function update_reg_status(reg_database) {
     });
   console.log(updateStatus);
 }
-module.exports.update_reg_status = update_reg_status
+module.exports.update_reg_status = update_reg_status;

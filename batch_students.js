@@ -1,14 +1,19 @@
 const fs = require("fs");
-const students_reg = JSON.parse(fs.readFileSync("students-reg.json", "utf-8"));
+const students_reg = JSON.parse(
+  fs.readFileSync("import_data/Seminar-Registration.json", "utf-8")
+);
 const mathced_students = JSON.parse(
-  fs.readFileSync("SeminarAssignments.json", "utf-8")
+  fs.readFileSync("export_data/SeminarAssignments.json", "utf-8")
 );
 const all_students_profiles = JSON.parse(
-  fs.readFileSync("Student-Profiles.json", "utf-8")
+  fs.readFileSync("import_data/Student-Profiles.json", "utf-8")
+);
+const wave_members = JSON.parse(
+  fs.readFileSync("import_data/WaveTeamEmails.json", "utf-8")
 );
 const { current_seminars_targetGrade } = require("./info_func");
 const { uuid } = require("uuidv4");
-const late_reg = JSON.parse(fs.readFileSync("late_reg.json", "utf-8"));
+//const late_reg = JSON.parse(fs.readFileSync("late_reg.json", "utf-8"));
 
 //============================Data Joining===========================//
 const joined_students_info = students_reg.map((student) => {
@@ -57,12 +62,14 @@ const joined_students_info = students_reg.map((student) => {
 //============================Data Cleaning===========================//
 
 const students_with_no_repeat_account = (JoinedStudentInfo) => {
+  console.log(JoinedStudentInfo.length + "origanl data size");
   function findRepeatAccount(repeatedAccounts = []) {
     const allStuEmailset = new Set();
     const allStuEmails = JoinedStudentInfo.map(({ email, id }) => {
       allStuEmailset.add(email);
       return { email, id };
     });
+    // console.log(allStuEmails.length + "ahaha");
 
     while (allStuEmails.length !== 0) {
       const accountInstance = allStuEmails.pop();
@@ -71,21 +78,49 @@ const students_with_no_repeat_account = (JoinedStudentInfo) => {
       }
     }
 
+    //console.log(repeatedAccounts.length);
     return repeatedAccounts;
   }
 
   function deleteRepeatAccount(repeatedAccounts, joinedStudentsInfo) {
+    // console.log(repeatAccount);
+    const repeatID = new Set();
+    repeatedAccounts.forEach(({ id }) => {
+      repeatID.add(id);
+    });
     return joinedStudentsInfo.filter((Student) => {
       const { id: repeatedId } = Student;
-      return !repeatedAccounts.includes(repeatedId);
+      return !repeatID.has(repeatedId);
     });
   }
 
   const repeatAccount = findRepeatAccount();
 
-  return deleteRepeatAccount(repeatAccount, JoinedStudentInfo);
-};
+  const deletedRepeat = deleteRepeatAccount(repeatAccount, JoinedStudentInfo);
+  //console.log(deletedRepeat.length + "!!!!!!!!!!!!!");
+  // sepate wave students and regular students
+  let normalStudent = [];
+  let wave_student = [];
+  const wave_member_set = new Set();
 
+  wave_members.forEach(({ teamEmails }) => {
+    wave_member_set.add(teamEmails);
+  });
+
+  deletedRepeat.forEach((student) => {
+    const { email } = student;
+    if (wave_member_set.has(email)) {
+      wave_student.push(student);
+    } else {
+      normalStudent.push(student);
+    }
+  });
+
+  // console.log(normalStudent.length);
+  //console.log(wave_student.length);
+
+  return [normalStudent, wave_student];
+};
 
 function sortByRegTimeCallback(a, b) {
   var date1 = new Date(Date.parse(a.createdAt));
@@ -107,31 +142,27 @@ const conflictTimeCoursesParis = [
   ["seminar134", "seminar127"],
 ];
 
-
 function clearStuWhoChooseTimeConflictCourse_helper(arr, conflictPair) {
-
   const courseArr = arr;
-   const sem1 = courseArr.indexOf(conflictPair[0]);
-   const sem2 = courseArr.indexOf(conflictPair[1]);
+  const sem1 = courseArr.indexOf(conflictPair[0]);
+  const sem2 = courseArr.indexOf(conflictPair[1]);
   if (sem1 !== -1 && sem2 !== -1) {
     if (sem1 > sem2) {
-      return courseArr.filter((sem)=> sem !== conflictPair[1]
-      )
-
+      return courseArr.filter((sem) => sem !== conflictPair[1]);
     } else {
-      return courseArr.filter((sem)=> sem !== conflictPair[0])
-
+      return courseArr.filter((sem) => sem !== conflictPair[0]);
     }
   }
 
-  return arr
+  return arr;
 }
 
 function clearStuWhoChooseTimeConflictCourse(arr, allConflictsPairs) {
   //console.log(arr + "Before reduce function")
   const courseArr = allConflictsPairs.reduce(
-  clearStuWhoChooseTimeConflictCourse_helper,
-   arr);
+    clearStuWhoChooseTimeConflictCourse_helper,
+    arr
+  );
 
   const arrToMap = new Map();
   courseArr.forEach((sem) => arrToMap.set(sem, false));
@@ -212,7 +243,7 @@ function setRegistered(
   allConflictsPairs = conflictTimeCoursesParis
 ) {
   const sortedRegisteredbyGrade = sortRegistrationByGrade(grade, registered);
-  
+
   //console.log(sortedRegisteredbyGrade + "set Registered")
   return clearStuWhoChooseTimeConflictCourse(
     sortedRegisteredbyGrade,
@@ -238,11 +269,11 @@ const packagedStudentInfo = (student) => {
   };
 };
 
-const batchStudentByNumSeminar = (regisrationData) => {
-  let batches = [];
+const batchStudentByNumSeminar = (regDataOne, regDataTwo) => {
+  let batchHolder = [];
   for (let index = 1; index < 6; index++) {
-    batches.push(
-      regisrationData
+    batchHolder.push(
+      regDataOne
         .map((student) => {
           return packagedStudentInfo(student);
         })
@@ -252,20 +283,53 @@ const batchStudentByNumSeminar = (regisrationData) => {
         .sort(sortByRegTimeCallback)
     );
   }
-  return batches;
+
+  let finalHolder = [];
+  for (let index = 1; index < 6; index++) {
+    finalHolder.push(
+      batchHolder[index - 1].concat(
+        regDataTwo
+          .map((student) => {
+            return packagedStudentInfo(student);
+          })
+          .filter(({ registered }) => {
+            return registered.size == index;
+          })
+          .sort(sortByRegTimeCallback)
+      )
+    );
+  }
+
+  return finalHolder;
 };
 
+const completeClean = students_with_no_repeat_account(joined_students_info);
+const complete_batch = batchStudentByNumSeminar(
+  completeClean[0],
+  completeClean[1]
+);
 
-const cleanResult = students_with_no_repeat_account(joined_students_info);
-const completed_batches = batchStudentByNumSeminar(cleanResult);
+module.exports.stu_batches = complete_batch;
+module.exports.filterRegistrationByGrade = filterRegistrationByGrade;
+checkBatch(complete_batch);
 
-
-module.exports.stu_batches = completed_batches
-module.exports.filterRegistrationByGrade = filterRegistrationByGrade
- console.log(completed_batches[4]);
-
-// console.log(students_reg.length + "total students");
-// console.log(late_reg.length + "late reg");
+function checkBatch(batch) {
+  let wrong = [];
+  let count = 0;
+  batch.forEach((SUBGROUP, index) => {
+    SUBGROUP.forEach((student) => {
+      count++;
+      const { registered } = student;
+      //   console.log(registered.size + "        " + index);
+      //console.log(registered);
+      if (registered.size > index + 1 || registered.size < index + 1) {
+        wrong.push(student);
+      }
+    });
+  });
+  // console.log(wrong);
+  // console.log(count);
+}
 
 //-------------------Optional methods------------------------------//
 // function filterStudentByCourse(seminar1, seminar2) {
@@ -299,7 +363,8 @@ module.exports.filterRegistrationByGrade = filterRegistrationByGrade
 
 //=======================wait list student ============================//
 // let waitListedStudent = [];
-// temp_batches.forEach((Subgroup) => {
+// let tempbatch = complete_batch;
+// tempbatch.forEach((Subgroup) => {
 //   Subgroup.forEach((Student) => {
 //     const { email, registered, studentName } = Student;
 
@@ -318,8 +383,8 @@ module.exports.filterRegistrationByGrade = filterRegistrationByGrade
 //     });
 //   });
 // });
-//=======================-----------------============================//
-// console.log(waitListedStudent.length);
+// // //=======================-----------------============================//
+// console.log(waitListedStudent.length + " walited student length");
 
 // fs.writeFile(
 //   "waitlistedStudentsWithSecSeminar.json",
@@ -333,3 +398,77 @@ module.exports.filterRegistrationByGrade = filterRegistrationByGrade
 //   }
 // );
 //{"id":"c3057621-0017-40b2-9943-22111868e335","seminar":"seminar138","waitlisted":false,"parentEmail":"minmou@gmail.com","student":"minmou@gmail.com","absences":null},
+
+// --------------------Edit info------------
+// let edInfo = [];
+// const ultSet = new Map();
+// let countt = 0;
+// complete_batch.forEach((Student_group) => {
+//   Student_group.forEach(({ email, studentName }) => {
+//     ultSet.set(email, studentName);
+//   });
+// });
+
+// mathced_students.map((MStudent) => {
+//   const { student: email, seminar, parentEmail } = MStudent;
+//   if (ultSet.has(email)) {
+//     let name = ultSet.get(email);
+//     edInfo.push({ name, parentEmail });
+//   }
+// });
+
+// // console.log(
+// //   edInfo.sort(function (a, b) {
+// //     if (a.seminar < b.seminar) {
+// //       return -1;
+// //     }
+// //     if (a.seminar > b.seminar) {
+// //       return 1;
+// //     }
+// //     return 0;
+// //   })
+// // );
+// console.log(ultSet.size + "countt" + countt);
+
+// fs.writeFile(
+//   "export_data/regAssignmentsforEd.json",
+//   JSON.stringify(edInfo),
+//   "utf8",
+//   (err) => {
+//     if (err) console.log(err);
+//     else {
+//       console.log("File written successfully\n");
+//     }
+//   }
+// );
+//===================================
+
+const parentEmailSet = new Map();
+
+complete_batch.forEach((Student_group) => {
+  Student_group.forEach(({ id, studentName, parentEmail }) => {
+    parentEmailSet.set(id, [studentName, parentEmail]);
+  });
+});
+
+const arr = [...parentEmailSet].map(([studentName, parentEmail]) => {
+  let student = parentEmail[0];
+  let parent = parentEmail[1];
+  return {
+    student,
+    parent,
+  };
+});
+
+//console.log(arr.length);
+fs.writeFile(
+  "export_data/parentEmails.json",
+  JSON.stringify(arr),
+  "utf8",
+  (err) => {
+    if (err) console.log(err);
+    else {
+      console.log("File written successfully\n");
+    }
+  }
+);

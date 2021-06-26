@@ -1,13 +1,14 @@
 const {
   current_seminars_id,
   current_seminars_infos,
-  checkCourseTimeConflicts,update_reg_status,
+  checkCourseTimeConflicts,
+  update_reg_status,
   courseStatus,
   total_Chose,
   total_capacity,
 } = require("./info_func.js");
 
-const { stu_batches ,filterRegistrationByGrade} = require("./batch_students");
+const { stu_batches, filterRegistrationByGrade } = require("./batch_students");
 
 const registration = [];
 current_seminars_infos.forEach(({ id, maxClassSize, targetAudience }) => {
@@ -22,7 +23,6 @@ current_seminars_infos.forEach(({ id, maxClassSize, targetAudience }) => {
     groups,
   });
 });
-
 
 let NumSeminarSwitch = false;
 function filterRegistrationByNumSeminars({ registered, numSeminars }) {
@@ -45,7 +45,12 @@ function filterRegistrationByNumSeminars({ registered, numSeminars }) {
 let debug_on_mismatch_reg_number = 0;
 let stu_with_misMatch_grade = [];
 
-function updateRegistration(stopPoint, groupNum, courseChoice, overloadPercentage = 1) {
+function updateRegistration(
+  stopPoint,
+  groupNum,
+  courseChoice,
+  overloadPercentage = 1.5
+) {
   stu_with_misMatch_grade = [];
   let overflowedStu = [];
   registration.forEach((seminar) => {
@@ -65,14 +70,13 @@ function updateRegistration(stopPoint, groupNum, courseChoice, overloadPercentag
           return;
         }
         if (
-          filterRegistrationByGrade(seminar.targetAudience, grade) !==
-          -999 &&
+          filterRegistrationByGrade(seminar.targetAudience, grade) !== -999 &&
           groupNum !== 0
         ) {
           return;
         }
-        const loadingStopPoint = seminar.maxClassSize* overloadPercentage
-        if (stopPoint === true && seminar.registered >= loadingStopPoint ) {
+        const loadingStopPoint = seminar.maxClassSize * overloadPercentage;
+        if (stopPoint === true && seminar.registered >= loadingStopPoint) {
           console.log(seminar.id + "is full! Stopped registering");
 
           overflowedStu.push(student);
@@ -239,11 +243,11 @@ mainAlgorithm(5, 5);
 
 console.log("================Final Registration Result ====================");
 update_reg_status(registration);
-console.log(
-  "~~~~~~~~~~~~~~~~~~~~Preprocessed registration~~~~~~~~~~~~~~~~~~~~~~~~"
-);
-console.log(courseStatus);
-console.log("================================================================");
+// console.log(
+//   "~~~~~~~~~~~~~~~~~~~~Preprocessed registration~~~~~~~~~~~~~~~~~~~~~~~~"
+// );
+// console.log(courseStatus);
+// console.log("================================================================");
 //=============experiment enhanceUpdate==================//
 // function enhancedUpdate(stopPoint, batchGroups, batchChoices) {
 //   for (let i = 0; i < batchGroups; i++) {
@@ -289,7 +293,7 @@ stu_batches.forEach((group) => {
 });
 console.log(count);
 console.log("Total regisration number: " + total_reg);
-console.log("Optimized regisration number: " + best_reg_num);
+console.log("Max regisration number: " + best_reg_num);
 console.log(
   "Total capacity: " + total_capacity + " Total Chose: " + total_Chose
 );
@@ -298,48 +302,46 @@ let total_match_count = 0;
 function resultToJson(stu_batches) {
   const result = [];
   stu_batches.forEach((group, index) => {
-    group.forEach(
-      ({ id, parentEmail, email, registered, numSeminars }) => {
-        let storeCourseNameKey = [];
-        let mapIter = registered.entries();
-        for (let i = 0; i < index; i++) {
-          let key = mapIter.next().value;
-          storeCourseNameKey.push(key);
-        }
-        let lastkey = mapIter.next().value;
-        storeCourseNameKey.push(lastkey);
-
-        let waitlisted = false;
-        //console.log(storeCourseNameKey);
-        let waitlisted_count = 0;
-        const seminarArr = storeCourseNameKey
-          .filter((e) => {
-            return e[1] === true;
-          })
-          .map((e) => {
-            waitlisted_count++;
-            return e[0];
-          });
-
-        total_match_count = total_match_count + seminarArr.length;
-
-        //console.log(waitlisted_count + "  " + numSeminars);
-        if (waitlisted_count < numSeminars) {
-          waitlisted = true;
-        }
-        let student = email;
-
-        let absences = null;
-        result.push({
-          id,
-          seminarArr,
-          waitlisted,
-          parentEmail,
-          student,
-          absences,
-        });
+    group.forEach(({ id, parentEmail, email, registered, numSeminars }) => {
+      let storeCourseNameKey = [];
+      let mapIter = registered.entries();
+      for (let i = 0; i < index; i++) {
+        let key = mapIter.next().value;
+        storeCourseNameKey.push(key);
       }
-    );
+      let lastkey = mapIter.next().value;
+      storeCourseNameKey.push(lastkey);
+
+      let waitlisted = false;
+      //console.log(storeCourseNameKey);
+      let waitlisted_count = 0;
+      const seminarArr = storeCourseNameKey
+        .filter((e) => {
+          return e[1] === true;
+        })
+        .map((e) => {
+          waitlisted_count++;
+          return e[0];
+        });
+
+      total_match_count = total_match_count + seminarArr.length;
+
+      //console.log(waitlisted_count + "  " + numSeminars);
+      if (waitlisted_count < numSeminars) {
+        waitlisted = true;
+      }
+      let student = email;
+
+      let absences = null;
+      result.push({
+        id,
+        seminarArr,
+        waitlisted,
+        parentEmail,
+        student,
+        absences,
+      });
+    });
   });
   return result;
 }
@@ -385,7 +387,7 @@ console.log(finalRegistrationResult.length + " NUMBER OF FINAL STUDENTS");
 //========Write final registration=====//
 // const fs = require("fs");
 // fs.writeFile(
-//   "SeminarAssignments.json",
+//   "export_data/SeminarAssignments.json",
 //   JSON.stringify(finalRegistrationResult),
 //   "utf8",
 //   (err) => {

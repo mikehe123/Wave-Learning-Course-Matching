@@ -152,18 +152,22 @@
 
 // console.log(result);
 
-let outerArr = [[1, 2, 3, 4, 5],[2],[3],[4],[5]];
-let innerArr = [];
+// let outerArr = [[1, 2, 3, 4, 5],[2],[3],[4],[5]];
+// let innerArr = [];
 
-function callback(Accumlator, currentValue, index) {
+// function callback(Accumlator, currentValue, index) {
 
-  const single = currentValue[0] 
-  const tempArr = Accumlator;
-  return tempArr.concat([single]);
-}
+//   const single = currentValue[0]
+//   const tempArr = Accumlator;
+//   return tempArr.concat([single]);
+// }
 
-const result = outerArr.reduce(callback, innerArr);
+// const result = outerArr.reduce(callback, innerArr);
 
+//  console.log( result);
+const fs = require("fs");
+const students_reg = JSON.parse(
+  fs.readFileSync("json_folder/Seminar-Registration.json", "utf-8")
+);
 
-
- console.log( result);
+console.log(students_reg);
