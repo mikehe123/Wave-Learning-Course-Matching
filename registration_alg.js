@@ -1,3 +1,4 @@
+const fs = require("fs");
 const {
   current_seminars_id,
   current_seminars_infos,
@@ -25,14 +26,18 @@ current_seminars_infos.forEach(({ id, maxClassSize, targetAudience }) => {
 });
 
 let NumSeminarSwitch = false;
-function filterRegistrationByNumSeminars({ registered, numSeminars }) {
+function filterRegistrationByNumSeminars(
+  { registered, numSeminars },
+  numSemSwitch
+) {
   let count = 0;
   registered.forEach((sem) => {
-    if (sem == true) {
+    if (sem) {
       count++;
     }
   });
-  if (!NumSeminarSwitch) {
+
+  if (!numSemSwitch) {
     if (count < 1) {
       return true;
     }
@@ -41,20 +46,21 @@ function filterRegistrationByNumSeminars({ registered, numSeminars }) {
       return true;
     }
   }
+  return false;
 }
-let debug_on_mismatch_reg_number = 0;
-let stu_with_misMatch_grade = [];
 
 function updateRegistration(
+  stu_database,
+  reg_database,
   stopPoint,
   groupNum,
   courseChoice,
+  numSemSwitch,
   overloadPercentage = 1.5
 ) {
-  stu_with_misMatch_grade = [];
   let overflowedStu = [];
-  registration.forEach((seminar) => {
-    stu_batches[groupNum].forEach((student) => {
+  reg_database.forEach((seminar) => {
+    stu_database[groupNum].forEach((student) => {
       const { email, studentName, registered, grade } = student;
       const itertor = registered.keys();
       let i = 0;
@@ -63,10 +69,9 @@ function updateRegistration(
         i++;
       }
       const temp = itertor.next().value;
-      // let white_swithc = false;
-      // let black_swithc = false;
+
       if (temp === seminar.id && registered.get(temp) === false) {
-        if (!filterRegistrationByNumSeminars(student)) {
+        if (!filterRegistrationByNumSeminars(student, numSemSwitch)) {
           return;
         }
         if (
@@ -77,30 +82,32 @@ function updateRegistration(
         }
         const loadingStopPoint = seminar.maxClassSize * overloadPercentage;
         if (stopPoint === true && seminar.registered >= loadingStopPoint) {
-          console.log(seminar.id + "is full! Stopped registering");
+          // console.log(seminar.id + "is full! Stopped registering");
 
           overflowedStu.push(student);
-          //  white_swithc = true;
+
           return;
         }
         seminar.registered++;
         registered.set(seminar.id, true);
-        if (email === "varly247@gmail.com") {
-          console.log("bug");
-        }
+
         seminar.groups.push({ studentName, email });
-        //    debug_on_mismatch_reg_number++;
       }
     });
   });
-  update_reg_status(registration);
+  //  update_reg_status(reg_database);
   return overflowedStu;
 }
 
-function updateRegistrationCustom(stopPoint, customGroup, courseChoice) {
+function updateRegistrationCustom(
+  custom_database,
+  reg_database,
+  stopPoint,
+  courseChoice
+) {
   let overflowedStu = [];
-  registration.forEach((seminar) => {
-    customGroup.forEach((student) => {
+  reg_database.forEach((seminar) => {
+    custom_database.forEach((student) => {
       const { studentName, email, registered } = student;
 
       const itertor = registered.keys();
@@ -113,61 +120,32 @@ function updateRegistrationCustom(stopPoint, customGroup, courseChoice) {
 
       if (temp === seminar.id && registered.get(temp) === false) {
         if (stopPoint === true && seminar.registered >= seminar.maxClassSize) {
-          console.log(seminar.id + "is full! Stopped registering");
+          // console.log(seminar.id + "is full! Stopped registering");
           overflowedStu.push(student);
-          //   white_swithc = true;
+
           return;
         }
         seminar.registered++;
         registered.set(seminar.id, true);
         seminar.groups.push({ studentName, email });
-        //    debug_on_mismatch_reg_number++;
       }
     });
   });
-  update_reg_status(registration);
+  // update_reg_status(reg_database);
   return overflowedStu;
 }
-// console.log(registration[0]);
-// console.log(stu_batches[4]);
-//update registration by student batch and their choices
 
-function MassUpdate(stopPoint, batchGroups, batchChoices) {
-  for (let i = 0; i < batchGroups; i++) {
-    for (let j = 0; j < batchChoices; j++) {
-      updateRegistration(stopPoint, i, j);
-    }
-  }
-}
-
-// check current registration status
-
-// get all registration by emails and check the registration size.
-const allseminarEmail = ({ groups }) => {
-  let emailList = [];
-  groups.forEach((subgroup) => {
-    subgroup.forEach((email) => {
-      emailList.push(email);
-    });
-  });
-  return emailList;
-};
-
-const total_course_regisration = registration.reduce((total, seminar) => {
-  return total + allseminarEmail(seminar).length;
-}, 0);
-//console.log(total_course_regisration);
-function studentWithNoReg(groupNum) {
+function studentWithNoReg(stu_database, groupNum) {
   let tempHolder = [];
-  stu_batches[groupNum].forEach((student) => {
+  stu_database[groupNum].forEach((student) => {
     const { registered } = student;
-    let count = 0;
+    let countRegCourses = 0;
     registered.forEach((value) => {
       if (value == false) {
-        // console.log(count);
-        count++;
+        //  console.log(countRegCourses);
+        countRegCourses++;
       }
-      if (count == groupNum + 1) {
+      if (countRegCourses == groupNum + 1) {
         tempHolder.push(student);
       }
     });
@@ -189,119 +167,102 @@ function studentWithNoReg(groupNum) {
   }
   return tempHolder;
 }
-//=============variable=============
-//stu_with_misMatch_grade
-//=======================Main Alg=========================//
-//MassUpdate(false, 2, 1);
 
-function cleanNoRegPool(noRegPool, groupNum, cleanDegree = 5) {
+//=======================Main Alg=========================//
+
+function cleanNoRegPool(
+  stu_database,
+  reg_database,
+  noRegPool,
+  groupNum,
+  cleanDegree = 5
+) {
   if (noRegPool.length !== 0) {
     // console.log("<<-----------------ff----------------->");
     for (let i = 1; i < cleanDegree; i++) {
       if (i == 1) {
-        updateRegistrationCustom(true, noRegPool, i);
+        updateRegistrationCustom(noRegPool, reg_database, true, i);
       }
       if (i > 1) {
-        updateRegistrationCustom(true, studentWithNoReg(groupNum), i);
+        updateRegistrationCustom(
+          studentWithNoReg(stu_database, groupNum),
+          reg_database,
+          true,
+          i
+        );
       }
     }
     // console.log("<-------------------ff--------------->>");
   }
 }
 
-function mainAlgorithm(groups, courseChoice) {
-  if (NumSeminarSwitch === false) {
-    updateRegistration(true, 0, 0);
+function mainAlgorithm(
+  stu_database,
+  reg_database,
+  groups,
+  courseChoice,
+  numSemSwitch
+) {
+  if (numSemSwitch === false) {
+    updateRegistration(stu_database, reg_database, true, 0, 0, numSemSwitch);
   }
 
   let noRegPool = [];
 
   for (let i = 1; i < groups; i++) {
-    cleanNoRegPool(noRegPool, i);
-    let misMatchPool = [];
+    cleanNoRegPool(stu_database, reg_database, noRegPool, i);
+
     for (let j = 0; j < courseChoice; j++) {
       if (j <= i) {
-        updateRegistration(true, i, j);
-        misMatchPool.push(stu_with_misMatch_grade);
+        updateRegistration(
+          stu_database,
+          reg_database,
+          true,
+          i,
+          j,
+          numSemSwitch
+        );
       }
     }
 
-    let intersectMisMatchPool = misMatchPool.reduce((a, b) =>
-      a.filter((c) => b.includes(c.email))
-    );
-
-    updateRegistrationCustom(true, intersectMisMatchPool, 0);
-    noRegPool = studentWithNoReg(i);
+    noRegPool = studentWithNoReg(stu_database, i);
   }
 
-  cleanNoRegPool(noRegPool, 4);
+  cleanNoRegPool(stu_database, reg_database, noRegPool, 4);
 }
 
-mainAlgorithm(5, 5);
-NumSeminarSwitch = true;
-mainAlgorithm(5, 5);
-
-console.log("================Final Registration Result ====================");
-update_reg_status(registration);
-// console.log(
-//   "~~~~~~~~~~~~~~~~~~~~Preprocessed registration~~~~~~~~~~~~~~~~~~~~~~~~"
-// );
-// console.log(courseStatus);
-// console.log("================================================================");
-//=============experiment enhanceUpdate==================//
-// function enhancedUpdate(stopPoint, batchGroups, batchChoices) {
-//   for (let i = 0; i < batchGroups; i++) {
-//     for (let j = 0; j < batchChoices; j++) {
-//       // registration.forEach((seminar) => {
-//       updateRegistration(stopPoint, registration[11], i, j);
-//       // });
-//     }
-//   }
-// }
-
-// enhancedUpdate(false, 5, 5);
-// console.log(registration[11]);
-
-// const allStudentsEmail = (stu_batches, courseName) => {
-//   let emailList = [];
-//   stu_batches.forEach((batch_test) => {
-//     batch_test.forEach((student) => {
-//       if (student.registered.get(courseName) === true) {
-//         emailList.push(student.email);
-//       }
-//     });
-//   });
-//   return emailList;
-// };
-let count = [];
-let total_reg = 0;
-let best_reg_num = 0;
-stu_batches.forEach((group) => {
-  group.forEach((student) => {
-    let pass = false;
-    best_reg_num = best_reg_num + student.numSeminars;
-    student.registered.forEach((sem) => {
-      if (sem === true) {
-        total_reg++;
-        pass = true;
+function checkRegStats(student_database) {
+  let count = [];
+  let total_reg = 0;
+  let best_reg_num = 0;
+  student_database.forEach((group) => {
+    group.forEach((student) => {
+      let pass = false;
+      best_reg_num = best_reg_num + student.numSeminars;
+      student.registered.forEach((sem) => {
+        if (sem === true) {
+          total_reg++;
+          pass = true;
+        }
+      });
+      if (pass === false) {
+        count.push(student);
       }
     });
-    if (pass !== true) {
-      count.push(student);
-    }
   });
-});
-console.log(count);
-console.log("Total regisration number: " + total_reg);
-console.log("Max regisration number: " + best_reg_num);
-console.log(
-  "Total capacity: " + total_capacity + " Total Chose: " + total_Chose
-);
+  if (count.length !== 0) {
+    console.log(count);
+  }
+  console.log("Total regisration number: " + total_reg);
+  console.log("Max regisration number: " + best_reg_num);
+  console.log(
+    "Total capacity: " + total_capacity + " Total Chose: " + total_Chose
+  );
+}
 
-let total_match_count = 0;
-function resultToJson(stu_batches) {
+function resultToJson(stu_database) {
   const result = [];
-  stu_batches.forEach((group, index) => {
+  stu_database.forEach((group, index) => {
     group.forEach(({ id, parentEmail, email, registered, numSeminars }) => {
       let storeCourseNameKey = [];
       let mapIter = registered.entries();
@@ -313,7 +274,7 @@ function resultToJson(stu_batches) {
       storeCourseNameKey.push(lastkey);
 
       let waitlisted = false;
-      //console.log(storeCourseNameKey);
+
       let waitlisted_count = 0;
       const seminarArr = storeCourseNameKey
         .filter((e) => {
@@ -324,9 +285,6 @@ function resultToJson(stu_batches) {
           return e[0];
         });
 
-      total_match_count = total_match_count + seminarArr.length;
-
-      //console.log(waitlisted_count + "  " + numSeminars);
       if (waitlisted_count < numSeminars) {
         waitlisted = true;
       }
@@ -343,11 +301,10 @@ function resultToJson(stu_batches) {
       });
     });
   });
+
   return result;
 }
 
-let regResultWithAllAssignCourses = resultToJson(stu_batches);
-exports.regResultWithAllAssignCourses = regResultWithAllAssignCourses;
 function splitStudentAssigment(unsplitedRes) {
   let finalResult = [];
   unsplitedRes.forEach((Student) => {
@@ -379,90 +336,91 @@ function splitStudentAssigment(unsplitedRes) {
 
   return finalResult;
 }
-const finalRegistrationResult = splitStudentAssigment(
-  regResultWithAllAssignCourses
-);
-console.log(total_match_count + " NUMBER OF FINAL STUDENTS");
-console.log(finalRegistrationResult.length + " NUMBER OF FINAL STUDENTS");
+
+function displayFinalRegResult(reg_database) {
+  console.log("================Final Registration Result ====================");
+  update_reg_status(reg_database);
+  console.log("=============================================================");
+}
+
 //========Write final registration=====//
-// const fs = require("fs");
-// fs.writeFile(
-//   "export_data/SeminarAssignments.json",
-//   JSON.stringify(finalRegistrationResult),
-//   "utf8",
-//   (err) => {
-//     if (err) console.log(err);
-//     else {
-//       console.log("File written successfully\n");
-//     }
-//   }
-// );
 
-//-------------------------------------------------------------------------------
-//========Write final registration=====//
-// const fs = require("fs");
-// fs.writeFile(
-//   "registration_info_per_seminar.json",
-//   JSON.stringify(registration),
-//   "utf8",
-//   (err) => {
-//     if (err) console.log(err);
-//     else {
-//       console.log("File written successfully\n");
-//     }
-//   }
-// );
+function writeSeminarAssignments(presDataResult) {
+  fs.writeFile(
+    "export_data/SeminarAssignments.json",
+    JSON.stringify(presDataResult),
+    "utf8",
+    (err) => {
+      if (err) console.log(err);
+      else {
+        console.log(`${presDataResult} written successfully\n`);
+      }
+    }
+  );
+}
 
-//============print out student data per seminar========//
-// let copy_reg = registration;
-// copy_reg.forEach((seminar) => {
-//   seminar.registered = 0;
-// });
-// regResultWithAllAssignCourses.forEach((student) => {
-//   const { seminarArr } = student;
-//   seminarArr.forEach((seminarName) => {
-//     copy_reg.forEach((seminar) => {
-//       if (seminarName == seminar.id) {
-//         seminar.registered++;
-//       }
-//     });
-//   });
-// });
-// update_reg_status(copy_reg);
+function compareRegDatabase(RegDatabase) {
+  const prev_reg_data = JSON.parse(
+    fs.readFileSync(
+      "intermediate_data/prev_registration_datebase.json",
+      "utf-8"
+    )
+  );
 
-// let group_length = [];
-// let studentlist = registration.reduce((total, sem) => {
-//   const { groups } = sem;
-//   group_length.push(groups.length);
-//   return total + groups.length;
-// }, 0);
-// console.log(registration.length);
+  const prev_reg_data_set = new Map();
+  prev_reg_data.forEach(({ id, registered }) => {
+    prev_reg_data_set.set(id, registered);
+  });
 
-// let group_num_count = 0;
-// group_length.forEach((e) => {
-//   group_num_count = group_num_count + e;
-// });
-// console.log(group_num_count);
-// console.log(
-//   group_length.sort((a, b) => {
-//     return b - a;
-//   })
-// );
+  const misMatchRegData = RegDatabase.filter(({ id, registered }) => {
+    return prev_reg_data_set.get(id) !== registered;
+  });
 
-// let misCount = 0;
-// let correctCount = 0;
-// let temp_id = registration[3].id;
+  if (misMatchRegData.length !== 0) {
+    console.log(misMatchRegData);
+    console.log(
+      registration.forEach(({ id, registered }) => {
+        console.log(id + " : " + registered);
+      })
+    );
+    console.log(prev_reg_data_set);
+  }
+}
 
-// registration.findIndex((e) => {
-//   return e.id === "seminar134";
-// });
-// console.log(registration[3]);
-// finalRegistrationResult.forEach((Student) => {
-//   if (Student.seminar.includes("seminar134")) {
-//     console.log(Student.student);
-//   }
-// });
+function compareSemAssignments(
+  presDataResult,
+  readfile = "prev_SeminarAssignments"
+) {
+  const toCompareRegAss = JSON.parse(
+    fs.readFileSync(`intermediate_data/${readfile}.json`, "utf-8")
+  );
 
-// console.log(misCount + " mis count here");
-// console.log(correctCount + " correct count here");
-// console.log(debug_on_mismatch_reg_number + " debug on mistmatch");
+  const setResult = new Set();
+  toCompareRegAss.forEach(({ student }) => {
+    setResult.add(student);
+  });
+
+  const misMatchRegData = presDataResult.filter(({ student }) => {
+    return !setResult.has(student);
+  });
+
+  console.log(
+    `SemAssignment Comparetion: ${misMatchRegData.size || 0} unmatched`
+  );
+}
+
+//:::FUnction calls
+
+mainAlgorithm(stu_batches, registration, 5, 5, false);
+mainAlgorithm(stu_batches, registration, 5, 5, true);
+
+displayFinalRegResult(registration);
+
+compareRegDatabase(registration);
+const upSplitRegResult = resultToJson(stu_batches);
+const finalRegResult = splitStudentAssigment(upSplitRegResult);
+checkRegStats(stu_batches);
+
+//::: used
+//writeSeminarAssignments(finalRegResult)
+//compareSemAssignments(finalRegResult);

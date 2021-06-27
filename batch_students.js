@@ -446,29 +446,32 @@ function checkBatch(batch) {
 const parentEmailSet = new Map();
 
 complete_batch.forEach((Student_group) => {
-  Student_group.forEach(({ id, studentName, parentEmail }) => {
-    parentEmailSet.set(id, [studentName, parentEmail]);
+  Student_group.forEach(({ id, studentName, email, parentEmail }) => {
+    parentEmailSet.set(id, [studentName, email, parentEmail]);
   });
 });
 
-const arr = [...parentEmailSet].map(([studentName, parentEmail]) => {
-  let student = parentEmail[0];
-  let parent = parentEmail[1];
+const arr = [...parentEmailSet].map(([studentName, ArrInfo]) => {
+  let student = ArrInfo[0];
+  let parent = ArrInfo[2];
+  let studentEmail = ArrInfo[1];
   return {
+    studentEmail,
     student,
     parent,
   };
 });
 
-//console.log(arr.length);
-fs.writeFile(
-  "export_data/parentEmails.json",
-  JSON.stringify(arr),
-  "utf8",
-  (err) => {
-    if (err) console.log(err);
-    else {
-      console.log("File written successfully\n");
-    }
-  }
-);
+// console.log(arr);
+// console.log(arr.length);
+// fs.writeFile(
+//   "export_data/parentEmails.json",
+//   JSON.stringify(arr),
+//   "utf8",
+//   (err) => {
+//     if (err) console.log(err);
+//     else {
+//       console.log("File written successfully\n");
+//     }
+//   }
+// );

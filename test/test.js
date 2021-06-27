@@ -165,9 +165,14 @@
 // const result = outerArr.reduce(callback, innerArr);
 
 //  console.log( result);
-const fs = require("fs");
-const students_reg = JSON.parse(
-  fs.readFileSync("json_folder/Seminar-Registration.json", "utf-8")
-);
+// const fs = require("fs");
+// const students_reg = JSON.parse(
+//   fs.readFileSync("json_folder/Seminar-Registration.json", "utf-8")
+// );
 
-console.log(students_reg);
+// console.log(students_reg);
+
+let arr = [];
+arr.push("q");
+console.log(arr);
+arr.
