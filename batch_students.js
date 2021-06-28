@@ -2,63 +2,66 @@ const fs = require("fs");
 const students_reg = JSON.parse(
   fs.readFileSync("import_data/Seminar-Registration.json", "utf-8")
 );
-const mathced_students = JSON.parse(
-  fs.readFileSync("export_data/SeminarAssignments.json", "utf-8")
-);
+
 const all_students_profiles = JSON.parse(
   fs.readFileSync("import_data/Student-Profiles.json", "utf-8")
 );
 const wave_members = JSON.parse(
   fs.readFileSync("import_data/WaveTeamEmails.json", "utf-8")
 );
+const mathced_students = JSON.parse(
+  fs.readFileSync("export_data/SeminarAssignments.json", "utf-8")
+);
 const { current_seminars_targetGrade } = require("./info_func");
 const { uuid } = require("uuidv4");
 //const late_reg = JSON.parse(fs.readFileSync("late_reg.json", "utf-8"));
 
 //============================Data Joining===========================//
-const joined_students_info = students_reg.map((student) => {
-  const { email, numSeminars, sem1, sem2, sem3, sem4, sem5, createdAt } =
-    student;
 
-  //Find registered students' grade from Student-Profiles.json
-  const level = all_students_profiles.filter((complete_profile) => {
-    const { email: profileEmail, grade: studentGrade } = complete_profile;
+function joinStuInfo(sem_reg, stu_pro) {
+  return sem_reg.map((student) => {
+    const { email, numSeminars, sem1, sem2, sem3, sem4, sem5, createdAt } =
+      student;
 
-    if (email === profileEmail) {
-      return studentGrade;
-    }
+    //Find registered students' grade from Student-Profiles.json
+    const level = stu_pro.filter((complete_profile) => {
+      const { email: profileEmail, grade: studentGrade } = complete_profile;
+
+      if (email === profileEmail) {
+        return studentGrade;
+      }
+    });
+
+    const grade = level[0]?.grade || "9";
+    const parentEmail = level[0]?.parentEmail || "";
+    const studentFirstName = level[0]?.first_name || "";
+    const studentSecondName = level[0]?.last_name || "";
+    const studentName = `${studentFirstName} ${studentSecondName}`;
+    const id = uuid();
+
+    // turn the seminar properties into a map, eliminate repeat courses
+    const registered = new Set();
+    const courseArr = [sem1, sem2, sem3, sem4, sem5];
+    const removedSeminar = ["seminar999"];
+
+    courseArr.forEach((seminar) => {
+      if (seminar && !removedSeminar.includes(seminar)) {
+        registered.add(seminar);
+      }
+    });
+
+    return {
+      id,
+      studentName,
+      email,
+      parentEmail,
+      grade,
+      numSeminars,
+      registered,
+      createdAt,
+    };
   });
-
-  const grade = level[0]?.grade || "9";
-  const parentEmail = level[0]?.parentEmail || "";
-  const studentFirstName = level[0]?.first_name || "";
-  const studentSecondName = level[0]?.last_name || "";
-  const studentName = `${studentFirstName} ${studentSecondName}`;
-  const id = uuid();
-
-  // turn the seminar properties into a map, eliminate repeat courses
-  const registered = new Set();
-  const courseArr = [sem1, sem2, sem3, sem4, sem5];
-  const removedSeminar = ["seminar999"];
-
-  courseArr.forEach((seminar) => {
-    if (seminar && !removedSeminar.includes(seminar)) {
-      registered.add(seminar);
-    }
-  });
-
-  return {
-    id,
-    studentName,
-    email,
-    parentEmail,
-    grade,
-    numSeminars,
-    registered,
-    createdAt,
-  };
-});
-
+}
 //============================Data Cleaning===========================//
 
 const students_with_no_repeat_account = (JoinedStudentInfo) => {
@@ -303,14 +306,102 @@ const batchStudentByNumSeminar = (regDataOne, regDataTwo) => {
   return finalHolder;
 };
 
-const completeClean = students_with_no_repeat_account(joined_students_info);
+function writeEdInfo(data_batch, matchData, Filename = "") {
+  let edInfo = [];
+  const ultSet = new Map();
+  let countt = 0;
+  data_batch.forEach((Student_group) => {
+    Student_group.forEach(({ email, studentName }) => {
+      ultSet.set(email, studentName);
+    });
+  });
+
+  matchData.map((MStudent) => {
+    const { seminar, student: email, parentEmail } = MStudent;
+    if (ultSet.has(email)) {
+      let name = ultSet.get(email);
+      let sep = name.split(" ");
+      let firstName = sep[0];
+      let lastName = sep[1];
+      edInfo.push({ seminar, firstName, lastName, email, parentEmail });
+    }
+  });
+
+  edInfo.sort((a, b) => {
+    if (a.seminar < b.seminar) {
+      return -1;
+    }
+    if (a.seminar > b.seminar) {
+      return 1;
+    }
+    return 0;
+  });
+
+  console.log(ultSet.size + "countt" + countt);
+
+  fs.writeFile(
+    `export_data/${Filename}regAssignmentsforEd.json`,
+    JSON.stringify(edInfo),
+    "utf8",
+    (err) => {
+      if (err) console.log(err);
+      else {
+        console.log("File written successfully\n");
+      }
+    }
+  );
+}
+
+function writeParentInfo(data_batch, Filename = "") {
+  const parentEmailSet = new Map();
+
+  data_batch.forEach((Student_group) => {
+    Student_group.forEach(({ id, studentName, email, parentEmail }) => {
+      parentEmailSet.set(id, [studentName, email, parentEmail]);
+    });
+  });
+
+  const arr = [...parentEmailSet].map(([studentName, ArrInfo]) => {
+    let student = ArrInfo[0];
+    let parent = ArrInfo[2];
+    let studentEmail = ArrInfo[1];
+    return {
+      studentEmail,
+      student,
+      parent,
+    };
+  });
+
+  fs.writeFile(
+    `export_data/${Filename}parentEmails.json`,
+    JSON.stringify(arr),
+    "utf8",
+    (err) => {
+      if (err) console.log(err);
+      else {
+        console.log("File written successfully\n");
+      }
+    }
+  );
+}
+
+module.exports.filterRegistrationByGrade = filterRegistrationByGrade;
+module.exports.joinStuInfo = joinStuInfo;
+module.exports.students_with_no_repeat_account =
+  students_with_no_repeat_account;
+module.exports.batchStudentByNumSeminar = batchStudentByNumSeminar;
+module.exports.writeEdInfo = writeEdInfo;
+module.exports.writeParentInfo = writeParentInfo;
+
+const joined_stu_info = joinStuInfo(students_reg, all_students_profiles);
+module.exports.old_join_db = joined_stu_info;
+const completeClean = students_with_no_repeat_account(joined_stu_info);
 const complete_batch = batchStudentByNumSeminar(
   completeClean[0],
   completeClean[1]
 );
 
 module.exports.stu_batches = complete_batch;
-module.exports.filterRegistrationByGrade = filterRegistrationByGrade;
 checkBatch(complete_batch);
 
 function checkBatch(batch) {
@@ -330,148 +421,3 @@ function checkBatch(batch) {
   // console.log(wrong);
   // console.log(count);
 }
-
-//-------------------Optional methods------------------------------//
-// function filterStudentByCourse(seminar1, seminar2) {
-//   let studentChooseConflicTimeCourses = [];
-//   batches.forEach((subGroup) => {
-//     subGroup.forEach((student) => {
-//       if (
-//         student.registered.has(seminar1) &&
-//         student.registered.has(seminar2)
-//       ) {
-//         const return_object = [student, seminar1, seminar2];
-//         studentChooseConflicTimeCourses.push(return_object);
-//       }
-//     });
-//   });
-//   return studentChooseConflicTimeCourses;
-// }
-
-// const numStuChooseTCC = conflictTimeCoursesParis.reduce((total, pair) => {
-//   return total + filterStudentByCourse(pair[0], pair[1]).length;
-// }, 0);
-
-// const StuChooseTCC = () =>
-//   conflictTimeCoursesParis.forEach((pair) => {
-//     console.log(filterStudentByCourse(pair[0], pair[1]));
-//   });
-//console.log(filterStudentByCourse("seminar136", "seminar131").length);
-//----------------------------------------------------------------//
-
-//console.log(temp_batches);
-
-//=======================wait list student ============================//
-// let waitListedStudent = [];
-// let tempbatch = complete_batch;
-// tempbatch.forEach((Subgroup) => {
-//   Subgroup.forEach((Student) => {
-//     const { email, registered, studentName } = Student;
-
-//     mathced_students.forEach((MStudent) => {
-//       const { student, waitlisted, seminar } = MStudent;
-//       let Memail = student;
-
-//       if (Memail == email && waitlisted && registered.size > 1) {
-//         registered.delete(seminar);
-
-//         let mapIter = registered.entries();
-//         let secondSeminar = mapIter.next().value[0];
-
-//         waitListedStudent.push({ studentName, email, secondSeminar });
-//       }
-//     });
-//   });
-// });
-// // //=======================-----------------============================//
-// console.log(waitListedStudent.length + " walited student length");
-
-// fs.writeFile(
-//   "waitlistedStudentsWithSecSeminar.json",
-//   JSON.stringify(waitListedStudent),
-//   "utf8",
-//   (err) => {
-//     if (err) console.log(err);
-//     else {
-//       console.log("File written successfully\n");
-//     }
-//   }
-// );
-//{"id":"c3057621-0017-40b2-9943-22111868e335","seminar":"seminar138","waitlisted":false,"parentEmail":"minmou@gmail.com","student":"minmou@gmail.com","absences":null},
-
-// --------------------Edit info------------
-// let edInfo = [];
-// const ultSet = new Map();
-// let countt = 0;
-// complete_batch.forEach((Student_group) => {
-//   Student_group.forEach(({ email, studentName }) => {
-//     ultSet.set(email, studentName);
-//   });
-// });
-
-// mathced_students.map((MStudent) => {
-//   const { student: email, seminar, parentEmail } = MStudent;
-//   if (ultSet.has(email)) {
-//     let name = ultSet.get(email);
-//     edInfo.push({ name, parentEmail });
-//   }
-// });
-
-// // console.log(
-// //   edInfo.sort(function (a, b) {
-// //     if (a.seminar < b.seminar) {
-// //       return -1;
-// //     }
-// //     if (a.seminar > b.seminar) {
-// //       return 1;
-// //     }
-// //     return 0;
-// //   })
-// // );
-// console.log(ultSet.size + "countt" + countt);
-
-// fs.writeFile(
-//   "export_data/regAssignmentsforEd.json",
-//   JSON.stringify(edInfo),
-//   "utf8",
-//   (err) => {
-//     if (err) console.log(err);
-//     else {
-//       console.log("File written successfully\n");
-//     }
-//   }
-// );
-//===================================
-
-const parentEmailSet = new Map();
-
-complete_batch.forEach((Student_group) => {
-  Student_group.forEach(({ id, studentName, email, parentEmail }) => {
-    parentEmailSet.set(id, [studentName, email, parentEmail]);
-  });
-});
-
-const arr = [...parentEmailSet].map(([studentName, ArrInfo]) => {
-  let student = ArrInfo[0];
-  let parent = ArrInfo[2];
-  let studentEmail = ArrInfo[1];
-  return {
-    studentEmail,
-    student,
-    parent,
-  };
-});
-
-// console.log(arr);
-// console.log(arr.length);
-// fs.writeFile(
-//   "export_data/parentEmails.json",
-//   JSON.stringify(arr),
-//   "utf8",
-//   (err) => {
-//     if (err) console.log(err);
-//     else {
-//       console.log("File written successfully\n");
-//     }
-//   }
-// );

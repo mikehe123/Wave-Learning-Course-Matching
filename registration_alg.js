@@ -38,15 +38,10 @@ function filterRegistrationByNumSeminars(
   });
 
   if (!numSemSwitch) {
-    if (count < 1) {
-      return true;
-    }
+    return count < 1 ? true : false;
   } else {
-    if (count < numSeminars) {
-      return true;
-    }
+    return count < numSeminars ? true : false;
   }
-  return false;
 }
 
 function updateRegistration(
@@ -103,7 +98,8 @@ function updateRegistrationCustom(
   custom_database,
   reg_database,
   stopPoint,
-  courseChoice
+  courseChoice,
+  overloadPercentage = 1.5
 ) {
   let overflowedStu = [];
   reg_database.forEach((seminar) => {
@@ -119,7 +115,8 @@ function updateRegistrationCustom(
       const temp = itertor.next().value;
 
       if (temp === seminar.id && registered.get(temp) === false) {
-        if (stopPoint === true && seminar.registered >= seminar.maxClassSize) {
+        const loadingStopPoint = seminar.maxClassSize * overloadPercentage;
+        if (stopPoint === true && seminar.registered >= loadingStopPoint) {
           // console.log(seminar.id + "is full! Stopped registering");
           overflowedStu.push(student);
 
@@ -345,15 +342,15 @@ function displayFinalRegResult(reg_database) {
 
 //========Write final registration=====//
 
-function writeSeminarAssignments(presDataResult) {
+function writeSeminarAssignments(presDataResult, fileName = "") {
   fs.writeFile(
-    "export_data/SeminarAssignments.json",
+    `export_data/${fileName}SeminarAssignments.json`,
     JSON.stringify(presDataResult),
     "utf8",
     (err) => {
       if (err) console.log(err);
       else {
-        console.log(`${presDataResult} written successfully\n`);
+        console.log(`${fileName} written successfully\n`);
       }
     }
   );
@@ -377,13 +374,20 @@ function compareRegDatabase(RegDatabase) {
   });
 
   if (misMatchRegData.length !== 0) {
-    console.log(misMatchRegData);
-    console.log(
-      registration.forEach(({ id, registered }) => {
-        console.log(id + " : " + registered);
-      })
-    );
-    console.log(prev_reg_data_set);
+    // console.log(misMatchRegData);
+    // console.log(
+    //   registration.forEach(({ id, registered }) => {
+    //     console.log(id + " : " + registered);
+    //   })
+    // );
+    // console.log(prev_reg_data_set);
+    let newSemAgcount = 0;
+    misMatchRegData.forEach(({ id, maxClassSize, registered }) => {
+      const changeNum = registered - prev_reg_data_set.get(id);
+      newSemAgcount += changeNum;
+      console.log(`MaxSize: ${maxClassSize} New: ${changeNum}`);
+    });
+    console.log("ComReg: Total : " + newSemAgcount + " new assignments");
   }
 }
 
@@ -400,17 +404,27 @@ function compareSemAssignments(
     setResult.add(student);
   });
 
+  let newSemAgcount = 0;
   const misMatchRegData = presDataResult.filter(({ student }) => {
+    if (!setResult.has(student)) {
+      newSemAgcount++;
+      // console.log(student);
+    }
+
     return !setResult.has(student);
   });
-
-  console.log(
-    `SemAssignment Comparetion: ${misMatchRegData.size || 0} unmatched`
-  );
+  console.log("ComSAG: Total : " + newSemAgcount + " new assignments");
 }
 
 //:::FUnction calls
-
+module.exports.mainAlgorithm = mainAlgorithm;
+module.exports.displayFinalRegResult = displayFinalRegResult;
+module.exports.resultToJson = resultToJson;
+module.exports.splitStudentAssigment = splitStudentAssigment;
+module.exports.compareRegDatabase = compareRegDatabase;
+module.exports.compareSemAssignments = compareSemAssignments;
+module.exports.checkRegStats = checkRegStats;
+module.exports.writeSeminarAssignments = writeSeminarAssignments;
 mainAlgorithm(stu_batches, registration, 5, 5, false);
 mainAlgorithm(stu_batches, registration, 5, 5, true);
 
@@ -420,6 +434,7 @@ compareRegDatabase(registration);
 const upSplitRegResult = resultToJson(stu_batches);
 const finalRegResult = splitStudentAssigment(upSplitRegResult);
 checkRegStats(stu_batches);
+//console.log(finalRegResult);
 
 //::: used
 //writeSeminarAssignments(finalRegResult)
