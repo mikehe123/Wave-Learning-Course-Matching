@@ -1,83 +1,92 @@
 const fs = require("fs");
-let students_reg = JSON.parse(
-  fs.readFileSync("import_data/Seminar-Registration.json", "utf-8")
-);
+
 let seminars_info = JSON.parse(
   fs.readFileSync("import_data/Seminars_Info.json", "utf-8")
 );
 
 //get all current seminars name
-const current_seminars_id = new Set();
-students_reg.forEach(({ sem1, sem2, sem3, sem4, sem5 }) => {
-  current_seminars_id.add(sem1);
-  current_seminars_id.add(sem2);
-  current_seminars_id.add(sem3);
-  current_seminars_id.add(sem4);
-  current_seminars_id.add(sem5);
-});
-current_seminars_id.delete("");
-current_seminars_id.delete("seminar999");
-exports.current_seminars_id = current_seminars_id;
+function get_curr_seminar_id(SemReg_db) {
+  const current_seminars_id = new Set();
+  SemReg_db.forEach(({ sem1, sem2, sem3, sem4, sem5 }) => {
+    current_seminars_id.add(sem1);
+    current_seminars_id.add(sem2);
+    current_seminars_id.add(sem3);
+    current_seminars_id.add(sem4);
+    current_seminars_id.add(sem5);
+  });
+  current_seminars_id.delete("");
+  current_seminars_id.delete("seminar999");
+
+  return current_seminars_id;
+}
+
 //console.log(current_seminars_id);
 
 //get current seminars's info
-const current_seminars_infos = new Set();
-seminars_info.forEach(
-  ({
-    id,
-    classTimes,
-    classDays,
-    maxClassSize,
-    targetAudience,
-    courseTitle,
-  }) => {
-    if (current_seminars_id.has(id)) {
-      current_seminars_infos.add({
-        id,
-        classTimes,
-        classDays,
-        maxClassSize,
-        targetAudience,
-        courseTitle,
-      });
+
+function get_curr_sem_info(SemInfo_db, curr_sem_id) {
+  const current_seminars_infos = new Set();
+  SemInfo_db.forEach(
+    ({
+      id,
+      classTimes,
+      classDays,
+      maxClassSize,
+      targetAudience,
+      courseTitle,
+    }) => {
+      if (curr_sem_id.has(id)) {
+        current_seminars_infos.add({
+          id,
+          classTimes,
+          classDays,
+          maxClassSize,
+          targetAudience,
+          courseTitle,
+        });
+      }
     }
-  }
-);
+  );
+  return current_seminars_infos;
+}
 
-exports.current_seminars_infos = current_seminars_infos;
+function get_curr_sem_targetGrade(curr_semInfo_db) {
+  const current_seminars_targetGrade = [];
+  curr_semInfo_db.forEach((seminar) => {
+    let name = seminar.id;
+    current_seminars_targetGrade.push([name, seminar.targetAudience]);
+  });
+  return current_seminars_targetGrade;
+}
 
-const current_seminars_targetGrade = [];
-current_seminars_infos.forEach((seminar) => {
-  let name = seminar.id;
-  current_seminars_targetGrade.push([name, seminar.targetAudience]);
-});
-exports.current_seminars_targetGrade = current_seminars_targetGrade;
 //console.log(current_seminars_targetGrade);
 //check conflicts time
 //console.log(current_seminars_targetGrade);
-function checkCourseTimeConflicts() {
+function checkCourseTimeConflicts(semInfo_db) {
+  let conflictCourseArr = [];
   let time = 1;
   while (time != 13) {
     console.log("==============Group" + time + "==================");
-    current_seminars_infos.forEach(({ id, classTimes, classDays }) => {
+    semInfo_db.forEach(({ id, classTimes, classDays }) => {
       let time_string = time.toString();
 
       if (classTimes.includes(time_string)) {
+        conflictCourseArr.push({ id, classTimes, classDays });
         console.log({ id, classTimes, classDays });
       }
     });
     time++;
   }
+  return conflictCourseArr;
 }
-exports.checkCourseTimeConflicts = checkCourseTimeConflicts;
 
 //check what seminars are overloaded;
 
-const checkOverloadedCourses = () => {
+const checkOverloadedCourses = (cur_sem_info, SemReg_db) => {
   let overloadInfo = [];
-  current_seminars_infos.forEach(({ id, maxClassSize }) => {
+  cur_sem_info.forEach(({ id, maxClassSize }) => {
     let overload = 0;
-    students_reg.forEach(({ sem1, sem2, sem3, sem4, sem5 }) => {
+    SemReg_db.forEach(({ sem1, sem2, sem3, sem4, sem5 }) => {
       const course_array = [sem1, sem2, sem3, sem4, sem5];
       course_array.forEach((course) => {
         if (id === course) {
@@ -107,27 +116,18 @@ const checkOverloadedCourses = () => {
       });
     }
   });
-  return overloadInfo;
+  return overloadInfo.sort((a, b) => {
+    {
+      if (a.Chose > b.Chose) {
+        return -1;
+      }
+      if (a.Chose < b.Chose) {
+        return 1;
+      }
+      return 0;
+    }
+  });
 };
-//console.log(checkOverloadedCourses());
-const sortedbyRegister = checkOverloadedCourses().sort((a, b) => {
-  return b.Registered - a.Registered;
-});
-exports.courseStatus = sortedbyRegister;
-
-const total_capacity = sortedbyRegister.reduce((total, { MaxSize }) => {
-  return total + MaxSize;
-}, 0);
-
-const total_Chose = sortedbyRegister.reduce((total, { Chose }) => {
-  return total + Chose;
-}, 0);
-
-exports.total_capacity = total_capacity;
-exports.total_Chose = total_Chose;
-// console.log(
-//   "Total capacity: " + total_capacity + " Total Chose: " + total_Chose
-// );
 
 function update_reg_status(reg_database) {
   const updateStatus = reg_database
@@ -158,4 +158,46 @@ function update_reg_status(reg_database) {
     });
   console.log(updateStatus);
 }
+
+function getPreRegStats(sortedResult) {
+  const total_capacity = sortedbyRegister.reduce((total, { MaxSize }) => {
+    return total + MaxSize;
+  }, 0);
+
+  const total_Chose = sortedbyRegister.reduce((total, { Chose }) => {
+    return total + Chose;
+  }, 0);
+  console.log(
+    "Total capacity: " + total_capacity + " Total Chose: " + total_Chose
+  );
+  return { total_capacity, total_Chose };
+}
+
+function getSemRegDatabasePath(pathName = "import") {
+  if (pathName === "import") {
+    return JSON.parse(
+      fs.readFileSync("import_data/Seminar-Registration.json", "utf-8")
+    );
+  } else {
+    return JSON.parse(
+      fs.readFileSync(
+        "intermediate_data/new_Seminar-Registration.json",
+        "utf-8"
+      )
+    );
+  }
+}
+const students_reg = getSemRegDatabasePath("");
+const curr_seminar_id = get_curr_seminar_id(students_reg);
+const curr_sem_info = get_curr_sem_info(seminars_info, curr_seminar_id);
+const curr_sems_targetGrade = get_curr_sem_targetGrade(curr_sem_info);
+const sortedbyRegister = checkOverloadedCourses(curr_sem_info, students_reg);
+//const courseTimeConflicts = checkCourseTimeConflicts(curr_sem_info);
+const preRegStats = getPreRegStats(sortedbyRegister);
+//module.exports.courseTimeConflicts = courseTimeConflicts;
 module.exports.update_reg_status = update_reg_status;
+module.exports.curr_seminar_id = curr_seminar_id;
+module.exports.curr_sem_info = curr_sem_info;
+module.exports.current_seminars_targetGrade = curr_sems_targetGrade;
+module.exports.courseStatus = sortedbyRegister;
+module.exports.preRegStats = preRegStats;

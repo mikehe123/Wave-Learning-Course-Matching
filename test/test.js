@@ -172,7 +172,12 @@
 
 // console.log(students_reg);
 
-let arr = [];
-arr.push("q");
-console.log(arr);
-arr.
+let x = "hell";
+
+function z(y) {
+  x = y;
+}
+
+console.log(x);
+z("fdsfa");
+console.log(x);

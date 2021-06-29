@@ -26,6 +26,7 @@ const {
   batchStudentByNumSeminar,
   writeEdInfo,
   writeParentInfo,
+  writeWaitlist,
 } = require("./batch_students.js");
 
 const updated_join_stu_info = joinStuInfo(new_Sem_Reg, new_Stu_Pro);
@@ -62,8 +63,10 @@ const {
   compareSemAssignments,
   checkRegStats,
   writeSeminarAssignments,
+  checkStuGotFirstChoice,
 } = require("./registration_alg.js");
 
+const { getPreRegStats } = require("./info_func");
 //run main alg
 let updated_registration = read_prev_reg;
 let updated_stu_batches = completeBatches;
@@ -75,8 +78,10 @@ checkRegStats(updated_stu_batches);
 const upSplitRegResult = resultToJson(updated_stu_batches);
 const updated_finalRegResult = splitStudentAssigment(upSplitRegResult);
 compareSemAssignments(updated_finalRegResult);
+checkStuGotFirstChoice(new_Sem_Reg, updated_stu_batches);
 
 //writeSeminarAssignments(updated_finalRegResult, "Updated");
 //writeEdInfo(updated_stu_batches, updated_finalRegResult, "Updated");
-writeParentInfo(completeBatches, "Updated");
+//writeParentInfo(completeBatches, "Updated");
+//writeWaitlist(updated_stu_batches, updated_finalRegResult, "Updated");
 //console.log(updated_registration);

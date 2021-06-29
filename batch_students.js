@@ -385,6 +385,62 @@ function writeParentInfo(data_batch, Filename = "") {
   );
 }
 
+function writeWaitlist(data_batch, matchData, Filename = "") {
+  let waitListedStudent = [];
+
+  data_batch.forEach((Subgroup) => {
+    Subgroup.forEach((Student) => {
+      const { email, registered, studentName } = Student;
+
+      matchData.forEach((MStudent) => {
+        const { student, waitlisted, seminar } = MStudent;
+        let Memail = student;
+
+        if (Memail == email && waitlisted && registered.size > 1) {
+          registered.delete(seminar);
+
+          let mapIter = registered.entries();
+          let secondSeminar = mapIter.next().value[0];
+
+          waitListedStudent.push({ studentName, email, secondSeminar });
+        }
+      });
+    });
+  });
+  // //=======================-----------------============================//
+  console.log(waitListedStudent.length + " walited student length");
+
+  fs.writeFile(
+    `export_data/${Filename}waitlistedStudentsWithSecSeminar.json`,
+    JSON.stringify(waitListedStudent),
+    "utf8",
+    (err) => {
+      if (err) console.log(err);
+      else {
+        console.log("File written successfully\n");
+      }
+    }
+  );
+}
+
+function checkBatch(batch, checkIndex = false) {
+  let wrong = [];
+  let count = 0;
+  batch.forEach((SUBGROUP, index) => {
+    SUBGROUP.forEach((student) => {
+      count++;
+      const { registered } = student;
+      if (checkIndex) {
+        console.log(registered.size + "        " + index);
+      }
+
+      if (registered.size > index + 1 || registered.size < index + 1) {
+        wrong.push(student);
+      }
+    });
+  });
+}
+
 module.exports.filterRegistrationByGrade = filterRegistrationByGrade;
 module.exports.joinStuInfo = joinStuInfo;
 module.exports.students_with_no_repeat_account =
@@ -392,6 +448,7 @@ module.exports.students_with_no_repeat_account =
 module.exports.batchStudentByNumSeminar = batchStudentByNumSeminar;
 module.exports.writeEdInfo = writeEdInfo;
 module.exports.writeParentInfo = writeParentInfo;
+module.exports.writeWaitlist = writeWaitlist;
 
 const joined_stu_info = joinStuInfo(students_reg, all_students_profiles);
 module.exports.old_join_db = joined_stu_info;
@@ -403,21 +460,4 @@ const complete_batch = batchStudentByNumSeminar(
 
 module.exports.stu_batches = complete_batch;
 checkBatch(complete_batch);
-
-function checkBatch(batch) {
-  let wrong = [];
-  let count = 0;
-  batch.forEach((SUBGROUP, index) => {
-    SUBGROUP.forEach((student) => {
-      count++;
-      const { registered } = student;
-      //   console.log(registered.size + "        " + index);
-      //console.log(registered);
-      if (registered.size > index + 1 || registered.size < index + 1) {
-        wrong.push(student);
-      }
-    });
-  });
-  // console.log(wrong);
-  // console.log(count);
-}
+//writeWaitlist(complete_batch, mathced_students);

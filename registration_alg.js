@@ -1,18 +1,20 @@
 const fs = require("fs");
+const students_reg = JSON.parse(
+  fs.readFileSync("import_data/Seminar-Registration.json", "utf-8")
+);
+
 const {
   current_seminars_id,
-  current_seminars_infos,
-  checkCourseTimeConflicts,
+  curr_sem_info,
   update_reg_status,
   courseStatus,
-  total_Chose,
-  total_capacity,
+  preRegStats,
 } = require("./info_func.js");
 
 const { stu_batches, filterRegistrationByGrade } = require("./batch_students");
 
 const registration = [];
-current_seminars_infos.forEach(({ id, maxClassSize, targetAudience }) => {
+curr_sem_info.forEach(({ id, maxClassSize, targetAudience }) => {
   let registered = 0;
 
   let groups = [];
@@ -252,9 +254,7 @@ function checkRegStats(student_database) {
   }
   console.log("Total regisration number: " + total_reg);
   console.log("Max regisration number: " + best_reg_num);
-  console.log(
-    "Total capacity: " + total_capacity + " Total Chose: " + total_Chose
-  );
+  console.log(preRegStats);
 }
 
 function resultToJson(stu_database) {
@@ -416,6 +416,26 @@ function compareSemAssignments(
   console.log("ComSAG: Total : " + newSemAgcount + " new assignments");
 }
 
+function checkStuGotFirstChoice(reg_db, after_batch) {
+  const pre_batch_first_choice_map = new Map();
+  let got_first_sem_count = 0;
+  reg_db.forEach(({ sem1, email }) => {
+    pre_batch_first_choice_map.set(email, sem1);
+  });
+  after_batch.forEach((subgroup) => {
+    subgroup.forEach(({ registered, email }) => {
+      if (pre_batch_first_choice_map.has(email)) {
+        let firstChoice = pre_batch_first_choice_map.get(email);
+        if (registered.get(firstChoice)) {
+          got_first_sem_count++;
+        }
+      }
+    });
+  });
+  console.log(got_first_sem_count + " students got their first seminar choice");
+  return got_first_sem_count;
+}
+
 //:::FUnction calls
 module.exports.mainAlgorithm = mainAlgorithm;
 module.exports.displayFinalRegResult = displayFinalRegResult;
@@ -425,17 +445,21 @@ module.exports.compareRegDatabase = compareRegDatabase;
 module.exports.compareSemAssignments = compareSemAssignments;
 module.exports.checkRegStats = checkRegStats;
 module.exports.writeSeminarAssignments = writeSeminarAssignments;
+module.exports.checkStuGotFirstChoice = checkStuGotFirstChoice;
 mainAlgorithm(stu_batches, registration, 5, 5, false);
 mainAlgorithm(stu_batches, registration, 5, 5, true);
 
 displayFinalRegResult(registration);
 
 compareRegDatabase(registration);
+
 const upSplitRegResult = resultToJson(stu_batches);
 const finalRegResult = splitStudentAssigment(upSplitRegResult);
+compareSemAssignments(finalRegResult);
 checkRegStats(stu_batches);
+checkStuGotFirstChoice(students_reg, stu_batches);
 //console.log(finalRegResult);
 
 //::: used
 //writeSeminarAssignments(finalRegResult)
-//compareSemAssignments(finalRegResult);
+//
