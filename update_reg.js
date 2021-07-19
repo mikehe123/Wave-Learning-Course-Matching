@@ -47,6 +47,21 @@ function extractNewStu(updateDB, oldDB) {
   });
   return newStudents;
 }
+
+function writeRegistrationBySem(regBySemDB) {
+  fs.writeFile(
+    "export_data/registration_record_by_seminars.json",
+    JSON.stringify(regBySemDB),
+    "utf8",
+    (err) => {
+      if (err) console.log(err);
+      else {
+        console.log("File written successfully\n");
+      }
+    }
+  );
+}
+
 const new_join_stu_Info = extractNewStu(updated_join_stu_info, old_join_db);
 const completeClean = students_with_no_repeat_account(new_join_stu_Info);
 const completeBatches = batchStudentByNumSeminar(
@@ -79,9 +94,10 @@ const upSplitRegResult = resultToJson(updated_stu_batches);
 const updated_finalRegResult = splitStudentAssigment(upSplitRegResult);
 compareSemAssignments(updated_finalRegResult);
 checkStuGotFirstChoice(new_Sem_Reg, updated_stu_batches);
+// writeRegistrationBySem(updated_registration);
 
-//writeSeminarAssignments(updated_finalRegResult, "Updated");
-//writeEdInfo(updated_stu_batches, updated_finalRegResult, "Updated");
-//writeParentInfo(completeBatches, "Updated");
-//writeWaitlist(updated_stu_batches, updated_finalRegResult, "Updated");
-//console.log(updated_registration);
+// writeSeminarAssignments(updated_finalRegResult, "Updated");
+// writeParentInfo(completeBatches, "Updated");
+// writeEdInfo(updated_stu_batches, updated_finalRegResult, "Updated");
+// writeWaitlist(updated_stu_batches, updated_finalRegResult, "Updated");
+// console.log(updated_registration);

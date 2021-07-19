@@ -90,15 +90,3 @@ function MassUpdate(reg_database, stopPoint, batchGroups, batchChoices) {
 
 //-------------------------------------------------------------------------------
 //========Write final registration databse =====//
-
-// fs.writeFile(
-//   "intermediate_data/registration_datebase.json",
-//   JSON.stringify(registration),
-//   "utf8",
-//   (err) => {
-//     if (err) console.log(err);
-//     else {
-//       console.log("File written successfully\n");
-//     }
-//   }
-// );

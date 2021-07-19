@@ -12,7 +12,11 @@ const wave_members = JSON.parse(
 const mathced_students = JSON.parse(
   fs.readFileSync("export_data/SeminarAssignments.json", "utf-8")
 );
-const { current_seminars_targetGrade } = require("./info_func");
+
+const {
+  current_seminars_targetGrade,
+  all_course_conflict_pairs,
+} = require("./info_func");
 const { uuid } = require("uuidv4");
 //const late_reg = JSON.parse(fs.readFileSync("late_reg.json", "utf-8"));
 
@@ -44,9 +48,9 @@ function joinStuInfo(sem_reg, stu_pro) {
     const courseArr = [sem1, sem2, sem3, sem4, sem5];
     const removedSeminar = ["seminar999"];
 
-    courseArr.forEach((seminar) => {
+    courseArr.forEach((seminar, index) => {
       if (seminar && !removedSeminar.includes(seminar)) {
-        registered.add(seminar);
+        registered.add([seminar, index]);
       }
     });
 
@@ -220,7 +224,25 @@ function sortRegistrationByGrade(
   let returnArr = [];
   let sortByGrade = [];
   seminarTargetGrade.forEach((seminar) => {
-    registered.forEach((stu_choice) => {
+    const setToArr = [];
+    registered.forEach((seminar_choice) => {
+      setToArr.push(seminar_choice);
+    });
+    // console.log("Pre: " + setToArr);
+    const reorderedArr = setToArr
+      .sort((a, b) => {
+        if (a[1] > b[a]) {
+          return -1;
+        } else {
+          return 1;
+        }
+      })
+      .map((seminar_choice) => {
+        return seminar_choice[0];
+      });
+    // console.log("Re: " + reorderedArr);
+
+    reorderedArr.forEach((stu_choice) => {
       if (seminar[0] === stu_choice) {
         const gap = filterRegistrationByGrade(seminar[1], grade);
         if (gap !== -999) {
@@ -231,6 +253,7 @@ function sortRegistrationByGrade(
       }
     });
   });
+
   const finishedSorting = sortByGrade.sort((a, b) => {
     return b[1] - a[1];
   });
@@ -447,7 +470,7 @@ module.exports.students_with_no_repeat_account =
   students_with_no_repeat_account;
 module.exports.batchStudentByNumSeminar = batchStudentByNumSeminar;
 module.exports.writeEdInfo = writeEdInfo;
-module.exports.writeParentInfo = writeParentInfo;
+//module.exports.writeParentInfo = writeParentInfo;
 module.exports.writeWaitlist = writeWaitlist;
 
 const joined_stu_info = joinStuInfo(students_reg, all_students_profiles);
@@ -459,5 +482,7 @@ const complete_batch = batchStudentByNumSeminar(
 );
 
 module.exports.stu_batches = complete_batch;
-checkBatch(complete_batch);
-//writeWaitlist(complete_batch, mathced_students);
+
+// checkBatch(complete_batch);
+// writeEdInfo(complete_batch, mathced_students);
+// writeWaitlist(complete_batch, mathced_students);

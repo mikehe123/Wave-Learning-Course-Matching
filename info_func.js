@@ -80,6 +80,68 @@ function checkCourseTimeConflicts(semInfo_db) {
   return conflictCourseArr;
 }
 
+function timeValue(t) {
+  let input = 0;
+  let hour = parseFloat(t.split(":")[0]);
+  let min = parseFloat(t.split(":")[1]);
+
+  if (hour == 12) {
+    hour = 0;
+  }
+
+  if (min != "0") {
+    input = hour + parseFloat(min) * 0.01;
+  } else {
+    input = hour;
+  }
+  return input;
+}
+
+function isOverlap(stringTime1, stringTime2) {
+  let t1 = stringTime1.split(" - ");
+  let t2 = stringTime2.split(" - ");
+
+  let sT = timeValue(t1[0]);
+  let eT = timeValue(t1[1]);
+
+  let sT2 = timeValue(t2[0]);
+  let eT2 = timeValue(t2[1]);
+
+  // console.log(sT, eT, sT2, eT2);
+  return sT < eT2 && sT2 < eT;
+}
+
+function courseConflictsPairs(semInfo_db) {
+  let groupCourseByDay = [];
+  let weekDays = ["Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun"];
+  weekDays.forEach((day) => {
+    let dayCourseGroup = [];
+    semInfo_db.forEach((course) => {
+      const { classDays } = course;
+      if (classDays.includes(day)) {
+        dayCourseGroup.push(course);
+      }
+    });
+    groupCourseByDay.push(dayCourseGroup);
+  });
+
+  let conflictsPairs = [];
+  groupCourseByDay.forEach((dayCourseGroup) => {
+    dayCourseGroup.forEach((courseA) => {
+      const { id: courseAId, classTimes: t1 } = courseA;
+      dayCourseGroup.forEach((courseB) => {
+        const { id: courseBId, classTimes: t2 } = courseB;
+        if (courseA != courseB) {
+          if (isOverlap(t1, t2)) {
+            conflictsPairs.push([courseAId, courseBId]);
+          }
+        }
+      });
+    });
+  });
+
+  return conflictsPairs;
+}
 //check what seminars are overloaded;
 
 const checkOverloadedCourses = (cur_sem_info, SemReg_db) => {
@@ -187,12 +249,12 @@ function getSemRegDatabasePath(pathName = "import") {
     );
   }
 }
-const students_reg = getSemRegDatabasePath("");
+const students_reg = getSemRegDatabasePath("intermediate");
 const curr_seminar_id = get_curr_seminar_id(students_reg);
 const curr_sem_info = get_curr_sem_info(seminars_info, curr_seminar_id);
 const curr_sems_targetGrade = get_curr_sem_targetGrade(curr_sem_info);
 const sortedbyRegister = checkOverloadedCourses(curr_sem_info, students_reg);
-//const courseTimeConflicts = checkCourseTimeConflicts(curr_sem_info);
+const courseTimeConflicts = checkCourseTimeConflicts(curr_sem_info);
 const preRegStats = getPreRegStats(sortedbyRegister);
 //module.exports.courseTimeConflicts = courseTimeConflicts;
 module.exports.update_reg_status = update_reg_status;
@@ -201,3 +263,9 @@ module.exports.curr_sem_info = curr_sem_info;
 module.exports.current_seminars_targetGrade = curr_sems_targetGrade;
 module.exports.courseStatus = sortedbyRegister;
 module.exports.preRegStats = preRegStats;
+// console.log(courseTimeConflicts);
+
+// console.log(sortedbyRegister);
+// console.log(preRegStats);
+const all_course_conflict_pairs = courseConflictsPairs(curr_sem_info);
+module.exports.all_course_conflict_pairs = all_course_conflict_pairs;

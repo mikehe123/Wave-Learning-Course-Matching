@@ -79,8 +79,6 @@ function updateRegistration(
         }
         const loadingStopPoint = seminar.maxClassSize * overloadPercentage;
         if (stopPoint === true && seminar.registered >= loadingStopPoint) {
-          // console.log(seminar.id + "is full! Stopped registering");
-
           overflowedStu.push(student);
 
           return;
@@ -92,7 +90,7 @@ function updateRegistration(
       }
     });
   });
-  //  update_reg_status(reg_database);
+
   return overflowedStu;
 }
 
@@ -119,7 +117,6 @@ function updateRegistrationCustom(
       if (temp === seminar.id && registered.get(temp) === false) {
         const loadingStopPoint = seminar.maxClassSize * overloadPercentage;
         if (stopPoint === true && seminar.registered >= loadingStopPoint) {
-          // console.log(seminar.id + "is full! Stopped registering");
           overflowedStu.push(student);
 
           return;
@@ -130,7 +127,7 @@ function updateRegistrationCustom(
       }
     });
   });
-  // update_reg_status(reg_database);
+
   return overflowedStu;
 }
 
@@ -141,7 +138,6 @@ function studentWithNoReg(stu_database, groupNum) {
     let countRegCourses = 0;
     registered.forEach((value) => {
       if (value == false) {
-        //  console.log(countRegCourses);
         countRegCourses++;
       }
       if (countRegCourses == groupNum + 1) {
@@ -177,7 +173,6 @@ function cleanNoRegPool(
   cleanDegree = 5
 ) {
   if (noRegPool.length !== 0) {
-    // console.log("<<-----------------ff----------------->");
     for (let i = 1; i < cleanDegree; i++) {
       if (i == 1) {
         updateRegistrationCustom(noRegPool, reg_database, true, i);
@@ -191,7 +186,6 @@ function cleanNoRegPool(
         );
       }
     }
-    // console.log("<-------------------ff--------------->>");
   }
 }
 
@@ -309,6 +303,9 @@ function splitStudentAssigment(unsplitedRes) {
       Student;
 
     let seminar = seminarArr[0];
+    let Created_At = new Date();
+
+    let Updated_At = new Date();
     finalResult.push({
       id,
       seminar,
@@ -316,6 +313,8 @@ function splitStudentAssigment(unsplitedRes) {
       parentEmail,
       student,
       absences,
+      Created_At,
+      Updated_At,
     });
 
     if (seminarArr.length === 2) {
@@ -327,6 +326,8 @@ function splitStudentAssigment(unsplitedRes) {
         parentEmail,
         student,
         absences,
+        Created_At,
+        Updated_At,
       });
     }
   });
@@ -388,6 +389,8 @@ function compareRegDatabase(RegDatabase) {
       console.log(`MaxSize: ${maxClassSize} New: ${changeNum}`);
     });
     console.log("ComReg: Total : " + newSemAgcount + " new assignments");
+  } else {
+    console.log("There is no new assignments");
   }
 }
 
@@ -408,7 +411,6 @@ function compareSemAssignments(
   const misMatchRegData = presDataResult.filter(({ student }) => {
     if (!setResult.has(student)) {
       newSemAgcount++;
-      // console.log(student);
     }
 
     return !setResult.has(student);
@@ -436,6 +438,20 @@ function checkStuGotFirstChoice(reg_db, after_batch) {
   return got_first_sem_count;
 }
 
+function writeRegDatabase(reg_db, fileName = "prev_") {
+  fs.writeFile(
+    `intermediate_data/${fileName}registration_datebase.json`,
+    JSON.stringify(reg_db),
+    "utf8",
+    (err) => {
+      if (err) console.log(err);
+      else {
+        console.log(`${fileName} written successfully\n`);
+      }
+    }
+  );
+}
+
 //:::FUnction calls
 module.exports.mainAlgorithm = mainAlgorithm;
 module.exports.displayFinalRegResult = displayFinalRegResult;
@@ -451,15 +467,17 @@ mainAlgorithm(stu_batches, registration, 5, 5, true);
 
 displayFinalRegResult(registration);
 
-compareRegDatabase(registration);
+checkStuGotFirstChoice(students_reg, stu_batches);
+// compareRegDatabase(registration);
 
 const upSplitRegResult = resultToJson(stu_batches);
 const finalRegResult = splitStudentAssigment(upSplitRegResult);
-compareSemAssignments(finalRegResult);
+// compareSemAssignments(finalRegResult);
 checkRegStats(stu_batches);
-checkStuGotFirstChoice(students_reg, stu_batches);
 //console.log(finalRegResult);
+// writeRegDatabase(registration);
+// console.log(courseStatus)
 
 //::: used
-//writeSeminarAssignments(finalRegResult)
+// writeSeminarAssignments(finalRegResult);
 //
