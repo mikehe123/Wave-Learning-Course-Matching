@@ -2,6 +2,7 @@ const fs = require("fs");
 const read_prev_reg = JSON.parse(
   fs.readFileSync("intermediate_data/prev_registration_datebase.json", "utf-8")
 );
+
 const prev_reg_ag = JSON.parse(
   fs.readFileSync("intermediate_data/prev_SeminarAssignments.json", "utf-8")
 );
@@ -9,9 +10,11 @@ const prev_reg_ag = JSON.parse(
 const prev_Stu_Pro = JSON.parse(
   fs.readFileSync("import_data/Student-Profiles.json", "utf-8")
 );
+
 const prev_Sem_Reg = JSON.parse(
   fs.readFileSync("import_data/Seminar-Registration.json", "utf-8")
 );
+
 const new_Stu_Pro = JSON.parse(
   fs.readFileSync("intermediate_data/new_Student-Profiles.json", "utf-8")
 );

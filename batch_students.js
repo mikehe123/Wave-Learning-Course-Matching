@@ -9,9 +9,9 @@ const all_students_profiles = JSON.parse(
 const wave_members = JSON.parse(
   fs.readFileSync("import_data/WaveTeamEmails.json", "utf-8")
 );
-const mathced_students = JSON.parse(
-  fs.readFileSync("export_data/SeminarAssignments.json", "utf-8")
-);
+// const mathced_students = JSON.parse(
+//   fs.readFileSync("export_data/SeminarAssignments.json", "utf-8")
+// );
 
 const {
   current_seminars_targetGrade,
@@ -21,6 +21,21 @@ const { uuid } = require("uuidv4");
 //const late_reg = JSON.parse(fs.readFileSync("late_reg.json", "utf-8"));
 
 //============================Data Joining===========================//
+function findStudentWithConflictPairs(sem_reg, pairs_db) {
+  let emaillist = new Set();
+  sem_reg.forEach((student) => {
+    const { email, sem1, sem2, sem3, sem4, sem5 } = student;
+    console.log(email);
+    console.log([sem1, sem2, sem3, sem4, sem5]);
+    let courseArr = [sem1, sem2, sem3, sem4, sem5];
+    pairs_db.forEach((pair) => {
+      if (courseArr.includes(pair[0]) && courseArr.includes(pair[1])) {
+        emaillist.add(email);
+      }
+    });
+  });
+  return emaillist;
+}
 
 function joinStuInfo(sem_reg, stu_pro) {
   return sem_reg.map((student) => {
@@ -53,6 +68,8 @@ function joinStuInfo(sem_reg, stu_pro) {
         registered.add([seminar, index]);
       }
     });
+    // console.log(email);
+    // console.log(registered);
 
     return {
       id,
@@ -154,7 +171,7 @@ function clearStuWhoChooseTimeConflictCourse_helper(arr, conflictPair) {
   const sem1 = courseArr.indexOf(conflictPair[0]);
   const sem2 = courseArr.indexOf(conflictPair[1]);
   if (sem1 !== -1 && sem2 !== -1) {
-    if (sem1 > sem2) {
+    if (sem1 < sem2) {
       return courseArr.filter((sem) => sem !== conflictPair[1]);
     } else {
       return courseArr.filter((sem) => sem !== conflictPair[0]);
@@ -176,7 +193,7 @@ function clearStuWhoChooseTimeConflictCourse(arr, allConflictsPairs) {
   return arrToMap;
 }
 
-function filterRegistrationByGrade(target, grade, gradeline = 0) {
+function filterRegistrationByGrade(target, grade, gradeline = 99) {
   let min = 12;
   let max = 6;
 
@@ -254,27 +271,29 @@ function sortRegistrationByGrade(
     });
   });
 
-  const finishedSorting = sortByGrade.sort((a, b) => {
-    return b[1] - a[1];
-  });
+  // const finishedSorting = sortByGrade.sort((a, b) => {
+  //   return b[1] - a[1];
+  // });
 
-  finishedSorting.forEach((e) => {
-    returnArr.push(e[0]);
-  });
+  // finishedSorting.forEach((e) => {
+  //   returnArr.push(e[0]);
+  // });
   return returnArr;
 }
 
 function setRegistered(
-  { grade, registered },
-  allConflictsPairs = conflictTimeCoursesParis
+  { email, grade, registered },
+  allConflictsPairs = all_course_conflict_pairs
 ) {
   const sortedRegisteredbyGrade = sortRegistrationByGrade(grade, registered);
-
+  //=====remove grade filter ====/
+  let semsArr = [];
+  for (const key of registered.keys()) {
+    semsArr.push(key[0]);
+  }
+  // console.log(semsArr);
   //console.log(sortedRegisteredbyGrade + "set Registered")
-  return clearStuWhoChooseTimeConflictCourse(
-    sortedRegisteredbyGrade,
-    allConflictsPairs
-  );
+  return clearStuWhoChooseTimeConflictCourse(semsArr, allConflictsPairs);
 }
 
 const packagedStudentInfo = (student) => {
@@ -464,6 +483,40 @@ function checkBatch(batch, checkIndex = false) {
   });
 }
 
+function restoreSemOrderHelper(orderArr, unorderMap) {
+  const correctOrder = new Map();
+  let reverseOrder = orderArr.slice().reverse();
+  // console.log("T" + reverseOrder);
+  // console.log("F" + orderArr);
+  orderArr.forEach((course) => {
+    if (unorderMap.has(course)) {
+      correctOrder.set(course, false);
+    }
+  });
+  return correctOrder;
+}
+function restoreSemOrder(sem_reg, stu_batches_db) {
+  const reg_db = new Map();
+
+  sem_reg.forEach((student) => {
+    const { email, sem1, sem2, sem3, sem4, sem5 } = student;
+    let courseArr = [sem1, sem2, sem3, sem4, sem5];
+    reg_db.set(email, courseArr);
+  });
+
+  stu_batches_db.forEach((subgroup) => {
+    subgroup.forEach((student) => {
+      const { email, registered } = student;
+      if (reg_db.has(email)) {
+        student.registered = restoreSemOrderHelper(
+          reg_db.get(email),
+          registered
+        );
+      }
+    });
+  });
+}
+
 module.exports.filterRegistrationByGrade = filterRegistrationByGrade;
 module.exports.joinStuInfo = joinStuInfo;
 module.exports.students_with_no_repeat_account =
@@ -481,8 +534,22 @@ const complete_batch = batchStudentByNumSeminar(
   completeClean[1]
 );
 
+restoreSemOrder(students_reg, complete_batch);
 module.exports.stu_batches = complete_batch;
+// complete_batch.forEach((subgroup) => {
+//   subgroup.forEach(({ email, registered }) => {
+//     console.log(email);
+//     console.log(registered);
+//   });
+// });
 
 // checkBatch(complete_batch);
 // writeEdInfo(complete_batch, mathced_students);
 // writeWaitlist(complete_batch, mathced_students);
+
+// const pure_student_with_cf = findStudentWithConflictPairs(
+//   students_reg,
+//   all_course_conflict_pairs
+// );
+
+// module.exports.pure_student_with_cf = pure_student_with_cf;

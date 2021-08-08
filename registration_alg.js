@@ -2,7 +2,9 @@ const fs = require("fs");
 const students_reg = JSON.parse(
   fs.readFileSync("import_data/Seminar-Registration.json", "utf-8")
 );
-
+// const alternative_reg = JSON.parse(
+//   fs.readFileSync("import_data/alternative_assignments.json", "utf-8")
+// );
 const {
   current_seminars_id,
   curr_sem_info,
@@ -11,7 +13,12 @@ const {
   preRegStats,
 } = require("./info_func.js");
 
-const { stu_batches, filterRegistrationByGrade } = require("./batch_students");
+const {
+  stu_batches,
+  filterRegistrationByGrade,
+  pure_student_with_cf,
+} = require("./batch_students");
+const { PassThrough } = require("stream");
 
 const registration = [];
 curr_sem_info.forEach(({ id, maxClassSize, targetAudience }) => {
@@ -53,7 +60,7 @@ function updateRegistration(
   groupNum,
   courseChoice,
   numSemSwitch,
-  overloadPercentage = 1.5
+  overloadPercentage = 2.0
 ) {
   let overflowedStu = [];
   reg_database.forEach((seminar) => {
@@ -99,7 +106,7 @@ function updateRegistrationCustom(
   reg_database,
   stopPoint,
   courseChoice,
-  overloadPercentage = 1.5
+  overloadPercentage = 2.0
 ) {
   let overflowedStu = [];
   reg_database.forEach((seminar) => {
@@ -370,8 +377,43 @@ function compareRegDatabase(RegDatabase) {
     prev_reg_data_set.set(id, registered);
   });
 
+  console.log(prev_reg_data);
+
   const misMatchRegData = RegDatabase.filter(({ id, registered }) => {
     return prev_reg_data_set.get(id) !== registered;
+  });
+
+  const remove_course_conflict = [];
+  const add_alt_course = [];
+
+  RegDatabase.forEach(({ id, groups }) => {
+    prev_reg_data.forEach(({ id: prev_id, groups: prev_group }) => {
+      if (id === prev_id) {
+        let groups_str = groups.map((student) => {
+          return JSON.stringify(student);
+        });
+
+        let prev_group_str = prev_group.map((prev_student) => {
+          return JSON.stringify(prev_student);
+        });
+
+        groups.forEach((student) => {
+          const { studentName, email } = student;
+          let stuStr = JSON.stringify(student);
+          if (!prev_group_str.includes(stuStr)) {
+            add_alt_course.push({ id, studentName, email });
+          }
+        });
+
+        prev_group.forEach((prev_student) => {
+          const { studentName, email } = prev_student;
+          let prev_student_str = JSON.stringify(prev_student);
+          if (!groups_str.includes(prev_student_str)) {
+            remove_course_conflict.push({ id, studentName, email });
+          }
+        });
+      }
+    });
   });
 
   if (misMatchRegData.length !== 0) {
@@ -392,6 +434,16 @@ function compareRegDatabase(RegDatabase) {
   } else {
     console.log("There is no new assignments");
   }
+
+  let checkset = add_alt_course.map((item) => {
+    return JSON.stringify(item);
+  });
+
+  let checksetSet = new Set(checkset);
+  console.log(checksetSet.size);
+
+  console.log(add_alt_course.length);
+  return [remove_course_conflict, add_alt_course];
 }
 
 function compareSemAssignments(
@@ -424,12 +476,22 @@ function checkStuGotFirstChoice(reg_db, after_batch) {
   reg_db.forEach(({ sem1, email }) => {
     pre_batch_first_choice_map.set(email, sem1);
   });
+
+  console.log(pre_batch_first_choice_map.size);
   after_batch.forEach((subgroup) => {
     subgroup.forEach(({ registered, email }) => {
+      // if (true) {
+      //   console.log(email);
+      //   console.log(registered);
+      // }
+
       if (pre_batch_first_choice_map.has(email)) {
         let firstChoice = pre_batch_first_choice_map.get(email);
         if (registered.get(firstChoice)) {
           got_first_sem_count++;
+        } else {
+          console.log(email);
+          console.log(registered);
         }
       }
     });
@@ -467,17 +529,16 @@ mainAlgorithm(stu_batches, registration, 5, 5, true);
 
 displayFinalRegResult(registration);
 
-checkStuGotFirstChoice(students_reg, stu_batches);
-// compareRegDatabase(registration);
-
 const upSplitRegResult = resultToJson(stu_batches);
 const finalRegResult = splitStudentAssigment(upSplitRegResult);
 // compareSemAssignments(finalRegResult);
 checkRegStats(stu_batches);
-//console.log(finalRegResult);
+// console.log(finalRegResult);
 // writeRegDatabase(registration);
-// console.log(courseStatus)
+console.log(courseStatus);
 
+checkStuGotFirstChoice(students_reg, stu_batches);
+console.log(students_reg.length);
 //::: used
 // writeSeminarAssignments(finalRegResult);
 //

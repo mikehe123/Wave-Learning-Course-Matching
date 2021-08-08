@@ -62,24 +62,6 @@ function get_curr_sem_targetGrade(curr_semInfo_db) {
 //console.log(current_seminars_targetGrade);
 //check conflicts time
 //console.log(current_seminars_targetGrade);
-function checkCourseTimeConflicts(semInfo_db) {
-  let conflictCourseArr = [];
-  let time = 1;
-  while (time != 13) {
-    console.log("==============Group" + time + "==================");
-    semInfo_db.forEach(({ id, classTimes, classDays }) => {
-      let time_string = time.toString();
-
-      if (classTimes.includes(time_string)) {
-        conflictCourseArr.push({ id, classTimes, classDays });
-        console.log({ id, classTimes, classDays });
-      }
-    });
-    time++;
-  }
-  return conflictCourseArr;
-}
-
 function timeValue(t) {
   let input = 0;
   let hour = parseFloat(t.split(":")[0]);
@@ -98,22 +80,78 @@ function timeValue(t) {
 }
 
 function isOverlap(stringTime1, stringTime2) {
-  let t1 = stringTime1.split(" - ");
-  let t2 = stringTime2.split(" - ");
+  let str1 = stringTime1;
+  let str2 = stringTime2;
+  let str3 = "";
+  let str4 = "";
+
+  if (str1.includes(",")) {
+    str1 = stringTime1.split(", ")[0];
+    str3 = stringTime1.split(", ")[1];
+    // console.log(str3);
+  }
+
+  if (str2.includes(",")) {
+    str2 = stringTime2.split(", ")[0];
+    str4 = stringTime2.split(", ")[1];
+    // console.log(str4);
+  }
+
+  let t1 = str1.split(" - ");
+  let t2 = str2.split(" - ");
+
+  if (t1.length == 1 || t2.length == 1) {
+    t1 = str1.split("-");
+    t2 = str2.split("-");
+  }
+
+  let sT3 = "";
+  let eT3 = "";
+  let sT4 = "";
+  let eT4 = "";
+
+  if (str3 !== "") {
+    let t3 = str3.split(" - ");
+    sT3 = timeValue(t3[0]);
+    eT4 = timeValue(t3[1]);
+  }
+
+  if (str4 !== "") {
+    let t4 = str4.split(" - ");
+    sT4 = timeValue(t4[0]);
+    eT4 = timeValue(t4[1]);
+  }
 
   let sT = timeValue(t1[0]);
   let eT = timeValue(t1[1]);
 
   let sT2 = timeValue(t2[0]);
   let eT2 = timeValue(t2[1]);
+  // console.log("||");
+  // console.log(t1);
+  // console.log(t2);
+  // console.log("^^^");
 
-  // console.log(sT, eT, sT2, eT2);
-  return sT < eT2 && sT2 < eT;
+  if (str3 === "" && str4 === "") {
+    return sT < eT2 && sT2 < eT;
+  } else if (str4 === "") {
+    if (sT < eT3 && sT3 < eT) {
+      return true;
+    } else {
+      return sT2 < eT3 && sT3 < eT2;
+    }
+  } else if (str3 === "") {
+    if (sT < eT4 && sT4 < eT) {
+      return true;
+    } else {
+      return sT2 < eT4 && sT4 < eT2;
+    }
+  }
 }
 
 function courseConflictsPairs(semInfo_db) {
   let groupCourseByDay = [];
-  let weekDays = ["Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun"];
+  const weekDays = ["Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun"];
   weekDays.forEach((day) => {
     let dayCourseGroup = [];
     semInfo_db.forEach((course) => {
@@ -140,7 +178,24 @@ function courseConflictsPairs(semInfo_db) {
     });
   });
 
-  return conflictsPairs;
+  let conflictsPairsJoin = conflictsPairs.map((courses) => {
+    // console.log(courses[0] + "," + courses[1]);
+    return courses[0] + "," + courses[1];
+  });
+
+  let conflictsPairJoinSet = new Set(conflictsPairsJoin);
+  // console.log(conflictsPairJoinSet);
+
+  let conflictCPairSplit = [];
+  conflictsPairJoinSet.forEach((pair) => {
+    let cA = pair.split(",")[0];
+    let cB = pair.split(",")[1];
+    conflictCPairSplit.push([cA, cB]);
+  });
+
+  // console.log(conflictCPairSplit.length);
+
+  return conflictCPairSplit;
 }
 //check what seminars are overloaded;
 
@@ -249,23 +304,25 @@ function getSemRegDatabasePath(pathName = "import") {
     );
   }
 }
-const students_reg = getSemRegDatabasePath("intermediate");
+const students_reg = getSemRegDatabasePath("import");
 const curr_seminar_id = get_curr_seminar_id(students_reg);
 const curr_sem_info = get_curr_sem_info(seminars_info, curr_seminar_id);
 const curr_sems_targetGrade = get_curr_sem_targetGrade(curr_sem_info);
 const sortedbyRegister = checkOverloadedCourses(curr_sem_info, students_reg);
-const courseTimeConflicts = checkCourseTimeConflicts(curr_sem_info);
+// const courseTimeConflicts = checkCourseTimeConflicts(curr_sem_info);
 const preRegStats = getPreRegStats(sortedbyRegister);
 //module.exports.courseTimeConflicts = courseTimeConflicts;
 module.exports.update_reg_status = update_reg_status;
+const all_course_conflict_pairs = courseConflictsPairs(curr_sem_info);
 module.exports.curr_seminar_id = curr_seminar_id;
 module.exports.curr_sem_info = curr_sem_info;
 module.exports.current_seminars_targetGrade = curr_sems_targetGrade;
 module.exports.courseStatus = sortedbyRegister;
 module.exports.preRegStats = preRegStats;
-// console.log(courseTimeConflicts);
+module.exports.all_course_conflict_pairs = all_course_conflict_pairs;
+console.log(all_course_conflict_pairs);
 
 // console.log(sortedbyRegister);
 // console.log(preRegStats);
-const all_course_conflict_pairs = courseConflictsPairs(curr_sem_info);
-module.exports.all_course_conflict_pairs = all_course_conflict_pairs;
+
+// writeTimeConflictPairs(all_course_conflict_pairs);

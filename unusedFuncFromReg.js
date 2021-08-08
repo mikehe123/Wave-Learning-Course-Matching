@@ -90,3 +90,133 @@ function MassUpdate(reg_database, stopPoint, batchGroups, batchChoices) {
 
 //-------------------------------------------------------------------------------
 //========Write final registration databse =====//
+
+
+function writeAlternative_reg(stu_database, alt_reg) {
+  
+
+  parentEmailMap = new Map();
+  const result = [];
+  stu_database.forEach((group) => {
+    group.forEach(({  parentEmail, email:reg_email  }) => {
+      parentEmailMap.set(reg_email,parentEmail)
+    });
+  }
+
+
+  alt_reg.forEach(({id:seminar, email:student}) => {
+        
+
+    parentEmail = parentEmailMap.get(student)    
+    waitlisted = false
+    absences = null
+    
+    result.push({
+        seminar,
+        waitlisted,
+        parentEmail,
+        student,
+        absences,
+      });
+
+  })
+
+  return result;
+}
+
+const write_alt_reg = writeAlternative_reg(stu_batches,writeAlternative_reg)
+
+console.log(write_alt_reg)
+
+
+// const reassignment_by_course_conflicts = compareRegDatabase(registration);
+
+// function isolate_reassign(reassignment_db, pure_emaillist) {
+//   let add_db = reassignment_db[1];
+
+//   let isolate_for_alt_db = new Set();
+//   add_db.forEach((rstudent) => {
+//     const { email } = rstudent;
+//     if (pure_emaillist.has(email)) {
+//       isolate_for_alt_db.add(rstudent);
+//     }
+//   });
+
+//   let returnArr = [];
+//   isolate_for_alt_db.forEach((e) => {
+//     returnArr.push(e);
+//   });
+//   return returnArr;
+// }
+
+// const isolated_reassignment = isolate_reassign(
+//   reassignment_by_course_conflicts,
+//   pure_student_with_cf
+// );
+
+// function writeReAssignment(reassignment_db) {
+//   fs.writeFile(
+//     `export_data/iso_reassignment_by_course_conflicts.json`,
+//     JSON.stringify(reassignment_db),
+//     "utf8",
+//     (err) => {
+//       if (err) console.log(err);
+//       else {
+//         console.log(`reassignment written successfully\n`);
+//       }
+//     }
+//   );
+// }
+// function testReAssignment(reassignment_db, iso_db) {
+//   let re_db_str = reassignment_db.map((stu) => {
+//     return JSON.stringify(stu);
+//   });
+//   iso_db.forEach((istu) => {
+//     let target = JSON.stringify(istu);
+//     if (!re_db_str.includes(target)) {
+//       console.log("!!!!!!!!!!!!! error");
+//     }
+//   });
+
+//   console.log("reass db size + iso db size: ");
+//   console.log(reassignment_db.length);
+//   console.log(iso_db.length);
+// }
+
+// testReAssignment(reassignment_by_course_conflicts[1], isolated_reassignment);
+// writeReAssignment(isolated_reassignment);
+// console.log(isolated_reassignment);
+
+console.log(alternative_reg.length);
+
+// function writeAlternative_reg(stu_database, alt_reg) {
+//   parentEmailMap = new Map();
+//   const result = [];
+//   stu_database.forEach((group) => {
+//     group.forEach(({ parentEmail, email: reg_email }) => {
+//       parentEmailMap.set(reg_email, parentEmail);
+//     });
+//   });
+
+//   alt_reg.forEach(({ id: seminar, email: student }) => {
+//     parentEmail = parentEmailMap.get(student);
+//     waitlisted = false;
+//     absences = null;
+
+//     result.push({
+//       seminar,
+//       waitlisted,
+//       parentEmail,
+//       student,
+//       absences,
+//     });
+//   });
+
+//   return result;
+// }
+
+// const write_alt_reg = writeAlternative_reg(stu_batches, alternative_reg);
+
+// console.log(write_alt_reg);
+
+// writeReAssignment(write_alt_reg);
