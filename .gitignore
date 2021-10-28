@@ -1,2 +1,5 @@
-# dependencies
-/node_modules
+archive_data
+export_data
+import_data
+intermediate_data
+node_modules

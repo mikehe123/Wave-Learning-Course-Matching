@@ -314,27 +314,21 @@ function splitStudentAssigment(unsplitedRes) {
 
     let Updated_At = new Date();
     finalResult.push({
-      id,
       seminar,
       waitlisted,
       parentEmail,
       student,
       absences,
-      Created_At,
-      Updated_At,
     });
 
     if (seminarArr.length === 2) {
       seminar = seminarArr[1];
       finalResult.push({
-        id,
         seminar,
         waitlisted,
         parentEmail,
         student,
         absences,
-        Created_At,
-        Updated_At,
       });
     }
   });
@@ -534,11 +528,11 @@ const finalRegResult = splitStudentAssigment(upSplitRegResult);
 // compareSemAssignments(finalRegResult);
 checkRegStats(stu_batches);
 // console.log(finalRegResult);
-// writeRegDatabase(registration);
+writeRegDatabase(registration);
 console.log(courseStatus);
 
 checkStuGotFirstChoice(students_reg, stu_batches);
 console.log(students_reg.length);
 //::: used
-// writeSeminarAssignments(finalRegResult);
+writeSeminarAssignments(finalRegResult);
 //
